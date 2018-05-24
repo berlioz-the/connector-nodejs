@@ -1,0 +1,17 @@
+<div class="card blue">
+    <div class="card-header">
+        Cluster <strong><%= cluster %></strong> Service <strong><%= service %></strong> Environment
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <tbody>
+                <% environment.forEach(function(envVar) { %>
+                    <tr>
+                        <th scope="row"><%= envVar.name %></th>
+                        <td><%= envVar.value %></td>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+</div>

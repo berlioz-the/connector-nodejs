@@ -1,0 +1,28 @@
+.json-pretty {
+    padding-left: 30px;
+    padding-right: 30px;
+    color: #abb2bf;
+    font-family: 'Inconsolata', monospace;
+    font-weight: 600;
+    font-size: 20pt;
+}
+
+.json-selected {
+    background-color: rgba(139, 191, 228, 0.19999999999999996);
+}
+
+.json-string {
+    color: #98c379;
+}
+
+.json-key {
+    color: #e06c75;
+}
+
+.json-boolean {
+    color: #56b6c2;
+}
+
+.json-number {
+    color: #d19a66;
+}
