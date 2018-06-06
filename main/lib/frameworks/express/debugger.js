@@ -1,4 +1,3 @@
-const _ = require('lodash');
 const serveStatic = require('serve-static')
 const prettyHtml = require('json-pretty-html').default;
 
@@ -31,7 +30,6 @@ module.exports = function(app, berlioz) {
         renderData.metadataHtml = getMetadata();
         response.render(VIEW_PREFIX + 'metadata', renderData);
     });
-
 
     function getRenderData()
     {

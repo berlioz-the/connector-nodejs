@@ -1,5 +1,6 @@
 const _ = require('the-lodash');
 const request = require('request-promise');
+const Zipkin = require('./zipkin');
 
 class PeerRequestError extends Error
 {
@@ -25,6 +26,7 @@ class Interface
     {
         this._logger = logger;
         this._registry = registry;
+        this._zipkin = new Zipkin(this);
     }
 
     get logger() {
@@ -98,6 +100,30 @@ class Interface
             .catch(error => {
                 throw new PeerRequestError(myOptions, peer, error);
             });
+    }
+
+    requestPeerNew(kind, name, endpoint, options)
+    {
+        var peer = this.getRandomPeer(kind, name, endpoint);
+        if (!peer) {
+            return Promise.resolve(false);
+        }
+        var myOptions = _.clone(options);
+        myOptions.url = peer.protocol + '://' + peer.address + ':' + peer.port;
+        if (options.url) {
+            myOptions.url += options.url;
+        }
+        return this._zipkin.makeRequest(myOptions, process.env.BERLIOZ_CLUSTER + '-' + name);
+            // .then(body => {
+            //     return {
+            //         url: myOptions.url,
+            //         peer: peer,
+            //         body: body
+            //     };
+            // })
+            // .catch(error => {
+            //     throw new PeerRequestError(myOptions, peer, error);
+            // });
     }
 
     /* DATABASES */
@@ -177,8 +203,14 @@ class Interface
       /* DEBUGGING HELPERS */
       setupDebugExpressJSRoutes(app)
       {
-          var handler = require('./router-helpers/express');
-          return handler(app, this);
+          var Handler = require('./framework/express');
+          this._handler = new Handler(app, this);
+      }
+
+      setupExpress(app)
+      {
+          var Handler = require('./framework/express');
+          this._handler = new Handler(app, this);
       }
 
 }

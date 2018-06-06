@@ -1,6 +1,6 @@
 {
   "name": "berlioz-connector",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -16,6 +16,10 @@
     "the-lodash": "^1.0.3",
     "the-logger": "^1.0.37",
     "the-promise": "^1.0.26",
-    "ws": "3.3.3"
+    "ws": "3.3.3",
+    "zipkin": "^0.12.0",
+    "zipkin-context-cls": "^0.11.0",
+    "zipkin-instrumentation-request": "^0.12.0",
+    "zipkin-transport-http": "^0.12.0"
   }
 }
