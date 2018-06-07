@@ -119,32 +119,14 @@ class Interface
      getDatabaseClient(name, AWS)
      {
          var dbInfo = this.getDatabaseInfo(name);
-
-         var handler = {
-             get: (target, propKey) => {
-                 return (params, cb) => {
-                     const origMethod = target[propKey];
-                     if (!origMethod) {
-                         throw new Error('Method ' + propKey + ' not found.');
-                     }
-                     var newParams = _.clone(params);
-                     newParams.TableName = dbInfo.tableName;
-                     var tracer = this.instrument('aws-dynamo-' + name, propKey, '/');
-                     origMethod.call(target, newParams, (err, data) => {
-                         if (err) {
-                             tracer.error(err);
-                         } else {
-                             tracer.finish(200);
-                         }
-                         cb(err, data);
-                     });
-                 };
-             }
-         };
-
          var docClient = new AWS.DynamoDB.DocumentClient(dbInfo.config);
-         var proxy = new Proxy(docClient, handler);
-         return proxy;
+
+         return this._wrapRemoteClient(docClient, 'aws-dynamo-' + name,
+            params => {
+                var newParams = _.clone(params);
+                newParams.TableName = dbInfo.tableName;
+                return newParams;
+            });
      }
 
      /* QUEUES */
@@ -187,32 +169,14 @@ class Interface
       getQueueClient(name, AWS)
       {
           var kinesisInfo = this.getQueueInfo(name);
-
-          var handler = {
-              get: (target, propKey) => {
-                  return (params, cb) => {
-                      const origMethod = target[propKey];
-                      if (!origMethod) {
-                          throw new Error('Method ' + propKey + ' not found.');
-                      }
-                      var newParams = _.clone(params);
-                      newParams.StreamName = kinesisInfo.streamName;
-                      var tracer = this.instrument('aws-kinesis-' + name, propKey, '/');
-                      origMethod.call(target, newParams, (err, data) => {
-                          if (err) {
-                              tracer.error(err);
-                          } else {
-                              tracer.finish(200);
-                          }
-                          cb(err, data);
-                      });
-                  };
-              }
-          };
-
           var kinesis = new AWS.Kinesis(kinesisInfo.config);
-          var proxy = new Proxy(kinesis, handler);
-          return proxy;
+
+          return this._wrapRemoteClient(kinesis, 'aws-kinesis-' + name,
+             params => {
+                 var newParams = _.clone(params);
+                 newParams.StreamName = kinesisInfo.streamName;
+                 return newParams;
+             });
       }
 
       /* INSTRUMENTATION */
@@ -221,18 +185,54 @@ class Interface
           return this._zipkin.instrument(remoteServiceName, method, url);
       }
 
-      /* DEBUGGING HELPERS */
-      setupDebugExpressJSRoutes(app)
-      {
-          return this.setupExpress(app);
-      }
-
+      /* FRAMEWORK CONFIGURATORS */
       setupExpress(app)
       {
           var Handler = require('./frameworks/express');
           this._handler = new Handler(app, this);
       }
 
+
+      /*******************************************************/
+       _wrapRemoteClient(toWrap, name, prepareInput)
+       {
+           var handler = {
+               get: (target, propKey) => {
+                   return (params, cb) => {
+                       const origMethod = target[propKey];
+                       if (!origMethod) {
+                           throw new Error('Method ' + propKey + ' not found.');
+                       }
+
+                       var doWork = (resolve, reject) => {
+                            var newParams = prepareInput(params);
+                            var tracer = this.instrument(name, propKey, '/');
+                            origMethod.call(target, newParams, (err, data) => {
+                                if (err) {
+                                    tracer.error(err);
+                                    reject(err);
+                                } else {
+                                    tracer.finish(200);
+                                    resolve(data);
+                                }
+                            });
+                        };
+
+                       if (!cb) {
+                           return new Promise(doWork);
+                       } else {
+                           doWork(result => {
+                               cb(null, result);
+                           }, error => {
+                               cb(error, null);
+                           })
+                       }
+                   };
+               }
+           };
+           var proxy = new Proxy(toWrap, handler);
+           return proxy;
+       }
 }
 
 module.exports = Interface;
