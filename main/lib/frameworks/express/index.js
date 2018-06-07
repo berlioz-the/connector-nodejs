@@ -1,4 +1,4 @@
-const _ = require('lodash');
+const _ = require('the-lodash');
 
 class Handler
 {
@@ -6,8 +6,9 @@ class Handler
     {
         this._app = app;
         this._berlioz = berlioz;
-        request('./zipkin')(app, berlioz);
-        request('./debugger')(app, berlioz);
+        require('./zipkin')(app, berlioz);
+        require('./body-parser')(app, berlioz);
+        require('./debugger')(app, berlioz);
     }
 }
 

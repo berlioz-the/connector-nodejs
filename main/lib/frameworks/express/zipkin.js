@@ -2,6 +2,12 @@ const zipkinMiddleware = require('zipkin-instrumentation-express').expressMiddle
 
 module.exports = function(app, berlioz) {
 
-    app.use(zipkinMiddleware({berlioz.zipkin.tracer}));
+    app.use((req, res, next) => {
+        var mid = zipkinMiddleware({tracer: berlioz.zipkin.tracer});
+        mid(req, res, () => {
+            req.tracerId = berlioz.zipkin.tracer.id;
+            next();
+        });
+    });
 
 };

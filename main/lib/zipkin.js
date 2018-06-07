@@ -1,10 +1,12 @@
 const {
     Tracer,
+    Annotation,
     BatchRecorder,
     jsonEncoder: {
         JSON_V2
     },
     ExplicitContext,
+    Instrumentation,
     ConsoleRecorder
 } = require('zipkin');
 const {
@@ -14,14 +16,14 @@ const CLSContext = require('zipkin-context-cls');
 
 const wrapRequest = require('zipkin-instrumentation-request');
 const request = require('request');
-const Promise = require('Promise');
+const Promise = require('the-promise');
 
 class Zipkin {
     constructor(berlioz) {
         this._berlioz = berlioz;
+        this._localServiceName = process.env.BERLIOZ_CLUSTER + '-' + process.env.BERLIOZ_SERVICE;
 
         const ctxImpl = new CLSContext('zipkin');
-        const localServiceName = process.env.BERLIOZ_CLUSTER + '-' + process.env.BERLIOZ_SERVICE;
         const recorder = new BatchRecorder({
             logger: new HttpLogger({
                 endpoint: process.env.BERLIOZ_ZIPKIN_PATH, //'http://172.17.0.10:9411/api/v2/spans',
@@ -32,7 +34,7 @@ class Zipkin {
         this.tracer = new Tracer({
             ctxImpl,
             recorder,
-            localServiceName
+            localServiceName: this._localServiceName
         });
     }
 
@@ -41,16 +43,58 @@ class Zipkin {
             tracer: this.tracer,
             remoteServiceName
         });
+        console.log('Making request to ' + options.url + ' traceId: ' + this.tracer.id);
         return new Promise((resolve, reject) => {
+            console.log('Inside promise ' + options.url + ' traceId: ' + this.tracer.id);
             zipkinRequest(options, (error, response, body) => {
+                console.log('Inside response ' + options.url + ' traceId: ' + this.tracer.id);
                 if (error) {
-                    return reject(error);
+                    return reject({
+                        error: error,
+                        url: options.url
+                    });
                 }
                 resolve({
-                    response,
-                    body
+                    statusCode: response.statusCode,
+                    body: response.body,
+                    headers: response.headers,
+                    request: response.request,
+                    url: options.url
                 });
             });
+        });
+    }
+
+    instrument(remoteServiceName, method, url)
+    {
+        return this.tracer.scoped(() => {
+            this.tracer.setId(this.tracer.createChildId());
+            this.tracer.recordServiceName(this.tracer.localEndpoint.serviceName);
+            this.tracer.recordRpc(method.toUpperCase());
+            this.tracer.recordBinary('http.url', url);
+            this.tracer.recordAnnotation(new Annotation.ClientSend());
+            this.tracer.recordAnnotation(new Annotation.ServerAddr({
+                serviceName: remoteServiceName
+            }));
+
+            const traceId = this.tracer.id;
+
+            const recordResponse = (statusCode) => {
+                this.tracer.setId(traceId);
+                this.tracer.recordBinary('http.status_code', statusCode.toString());
+                this.tracer.recordAnnotation(new Annotation.ClientRecv());
+            };
+
+            const recordError  = (error) => {
+                this.tracer.setId(traceId);
+                this.tracer.recordBinary('error', error.toString());
+                this.tracer.recordAnnotation(new Annotation.ClientRecv());
+            };
+
+            return {
+                finish: recordResponse,
+                error: recordError
+            }
         });
     }
 }

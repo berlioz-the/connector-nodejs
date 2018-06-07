@@ -1,7 +1,8 @@
+const _ = require('the-lodash');
 const serveStatic = require('serve-static')
 const prettyHtml = require('json-pretty-html').default;
 
-const VIEW_PREFIX = '../node_modules/berlioz-connector/lib/router-helpers/express/views/pages/';
+const VIEW_PREFIX = '../node_modules/berlioz-connector/lib/frameworks/express/views/pages/';
 
 module.exports = function(app, berlioz) {
 

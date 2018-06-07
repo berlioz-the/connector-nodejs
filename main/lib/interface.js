@@ -2,24 +2,6 @@ const _ = require('the-lodash');
 const request = require('request-promise');
 const Zipkin = require('./zipkin');
 
-class PeerRequestError extends Error
-{
-    constructor(options, peer, innerError)
-    {
-        super(innerError.message);
-        this._options = options;
-        this._peer = peer;
-    }
-
-    get peer() {
-        return this._peer;
-    }
-
-    get url() {
-        return this._options.url;
-    }
-}
-
 class Interface
 {
     constructor(logger, registry)
@@ -31,6 +13,10 @@ class Interface
 
     get logger() {
         return this._logger;
+    }
+
+    get zipkin() {
+        return this._zipkin;
     }
 
     extractRoot()
@@ -73,57 +59,24 @@ class Interface
         return _.randomElement(_.values(peers));
     }
 
-    requestRandomPeer(kind, name, endpoint, options)
+    requestPeer(kind, name, endpoint, options)
     {
-        var peer = this.getRandomPeer(kind, name, endpoint);
-        return this.requestPeer(peer, options);
+        return this.request(kind, name, endpoint, options);
     }
 
-    requestPeer(peer, options)
-    {
-        if (!peer) {
-            return Promise.resolve(false);
-        }
-        var myOptions = _.clone(options);
-        myOptions.url = peer.protocol + '://' + peer.address + ':' + peer.port;
-        if (options.url) {
-            myOptions.url += options.url;
-        }
-        return request(myOptions)
-            .then(body => {
-                return {
-                    url: myOptions.url,
-                    peer: peer,
-                    body: body
-                };
-            })
-            .catch(error => {
-                throw new PeerRequestError(myOptions, peer, error);
-            });
-    }
-
-    requestPeerNew(kind, name, endpoint, options)
+    request(kind, name, endpoint, options)
     {
         var peer = this.getRandomPeer(kind, name, endpoint);
         if (!peer) {
             return Promise.resolve(false);
         }
         var myOptions = _.clone(options);
+        myOptions.timeout = 5000;
         myOptions.url = peer.protocol + '://' + peer.address + ':' + peer.port;
         if (options.url) {
             myOptions.url += options.url;
         }
         return this._zipkin.makeRequest(myOptions, process.env.BERLIOZ_CLUSTER + '-' + name);
-            // .then(body => {
-            //     return {
-            //         url: myOptions.url,
-            //         peer: peer,
-            //         body: body
-            //     };
-            // })
-            // .catch(error => {
-            //     throw new PeerRequestError(myOptions, peer, error);
-            // });
     }
 
     /* DATABASES */
@@ -163,6 +116,37 @@ class Interface
         return info;
      }
 
+     getDatabaseClient(name, AWS)
+     {
+         var dbInfo = this.getDatabaseInfo(name);
+
+         var handler = {
+             get: (target, propKey) => {
+                 return (params, cb) => {
+                     const origMethod = target[propKey];
+                     if (!origMethod) {
+                         throw new Error('Method ' + propKey + ' not found.');
+                     }
+                     var newParams = _.clone(params);
+                     newParams.TableName = dbInfo.tableName;
+                     var tracer = this.instrument('aws-dynamo-' + name, propKey, '/');
+                     origMethod.call(target, newParams, (err, data) => {
+                         if (err) {
+                             tracer.error(err);
+                         } else {
+                             tracer.finish(200);
+                         }
+                         cb(err, data);
+                     });
+                 };
+             }
+         };
+
+         var docClient = new AWS.DynamoDB.DocumentClient(dbInfo.config);
+         var proxy = new Proxy(docClient, handler);
+         return proxy;
+     }
+
      /* QUEUES */
      monitorQueues(name, cb)
      {
@@ -200,16 +184,52 @@ class Interface
          return info;
       }
 
+      getQueueClient(name, AWS)
+      {
+          var kinesisInfo = this.getQueueInfo(name);
+
+          var handler = {
+              get: (target, propKey) => {
+                  return (params, cb) => {
+                      const origMethod = target[propKey];
+                      if (!origMethod) {
+                          throw new Error('Method ' + propKey + ' not found.');
+                      }
+                      var newParams = _.clone(params);
+                      newParams.StreamName = kinesisInfo.streamName;
+                      var tracer = this.instrument('aws-kinesis-' + name, propKey, '/');
+                      origMethod.call(target, newParams, (err, data) => {
+                          if (err) {
+                              tracer.error(err);
+                          } else {
+                              tracer.finish(200);
+                          }
+                          cb(err, data);
+                      });
+                  };
+              }
+          };
+
+          var kinesis = new AWS.Kinesis(kinesisInfo.config);
+          var proxy = new Proxy(kinesis, handler);
+          return proxy;
+      }
+
+      /* INSTRUMENTATION */
+      instrument(remoteServiceName, method, url)
+      {
+          return this._zipkin.instrument(remoteServiceName, method, url);
+      }
+
       /* DEBUGGING HELPERS */
       setupDebugExpressJSRoutes(app)
       {
-          var Handler = require('./framework/express');
-          this._handler = new Handler(app, this);
+          return this.setupExpress(app);
       }
 
       setupExpress(app)
       {
-          var Handler = require('./framework/express');
+          var Handler = require('./frameworks/express');
           this._handler = new Handler(app, this);
       }
 
