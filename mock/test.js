@@ -16,7 +16,7 @@ berlioz.monitorEndpoints('client', endpoints => {
     console.log(JSON.stringify(endpoints, null, 2));
 });
 
-berlioz.monitorPeers('adjasensy', 'zoo', 'client', peers => {
+berlioz.monitorPeers('service', 'app', 'client', peers => {
     console.log('PEERS:');
     console.log(JSON.stringify(peers, null, 2));
 });
