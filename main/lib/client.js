@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
 const Promise = require('the-promise');
+const _ = require('the-lodash');
 
 class Client
 {
@@ -10,75 +11,66 @@ class Client
         this._processor = processor;
         this._sections = [];
 
-        this._addSection('endpoints', this._processor.acceptEndpoints.bind(this._processor));
-        this._addSection('peers', this._processor.acceptPeers.bind(this._processor));
+        this._wsInfo = {
+            isClosed: false,
+            ws: null,
+            address: this._baseAddress
+        };
+
+        this._connectSection(this._wsInfo);
     }
 
     close()
     {
-        for(var section of this._sections)
-        {
-            this._closeSection(section);
-        }
+        this._closeSection(this._wsInfo);
     }
 
-    _addSection(name, handler)
+    _connectSection(wsInfo)
     {
-        var sectionInfo = {
-            section: name,
-            isClosed: false,
-            ws: null,
-            address: this._baseAddress + '/' + name,
-            handler: handler
-        }
-        this._sections.push(sectionInfo);
-        this._connectSection(sectionInfo);
-    }
+        this._logger.info('Connecting to %s...', wsInfo.address);
 
-    _connectSection(sectionInfo)
-    {
-        this._logger.info('Connecting to %s...', sectionInfo.address);
+        wsInfo.ws = new WebSocket(wsInfo.address);
 
-        sectionInfo.ws = new WebSocket(sectionInfo.address);
-
-        sectionInfo.ws.on('open', () => {
+        wsInfo.ws.on('open', () => {
             this._logger.info('Client connected');
-            sectionInfo.handler();
+            // wsInfo.handler();
         });
 
-        sectionInfo.ws.on('error', error => {
+        wsInfo.ws.on('error', error => {
             this._logger.error(error);
         });
 
-        sectionInfo.ws.on('message', msg => {
+        wsInfo.ws.on('message', msg => {
             // this._logger.info(msg);
             var data = JSON.parse(msg);
-            sectionInfo.handler(data);
+            for(var section of _.keys(data)) {
+                this._processor.accept(section, data[section]);
+            }
         });
 
-        sectionInfo.ws.on('close', () => {
-            sectionInfo.ws = null;
+        wsInfo.ws.on('close', () => {
+            wsInfo.ws = null;
             this._logger.info('Client disconnected');
-            this._reconnectSection(sectionInfo);
+            this._reconnectSection(wsInfo);
         });
     }
 
-    _reconnectSection(sectionInfo)
+    _reconnectSection(wsInfo)
     {
-        if (sectionInfo.isClosed) {
+        if (wsInfo.isClosed) {
             return;
         }
 
         this._logger.info('Reconnecting after timeout...');
         return Promise.timeout(2000)
-            .then(() => this._connectSection(sectionInfo));
+            .then(() => this._connectSection(wsInfo));
     }
 
-    _closeSection(sectionInfo)
+    _closeSection(wsInfo)
     {
-        sectionInfo.isClosed = true;
-        if (sectionInfo.ws) {
-            sectionInfo.ws.terminate();
+        wsInfo.isClosed = true;
+        if (wsInfo.ws) {
+            wsInfo.ws.terminate();
         }
     }
 }

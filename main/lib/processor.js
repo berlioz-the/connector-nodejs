@@ -15,6 +15,16 @@ class Processor
         };
     }
 
+    accept(section, data)
+    {
+        if (section == 'endpoints') {
+            return this.acceptEndpoints(data);
+        }
+        if (section == 'peers') {
+            return this.acceptPeers(data);
+        }
+    }
+
     acceptEndpoints(message)
     {
         this._logger.info('acceptEndpoints', message);
