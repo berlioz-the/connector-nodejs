@@ -18,12 +18,12 @@ class Interface {
         }
 
         this._nativeClientParamsSetter = {
-            dynamodb: (params) => {
+            dynamodb: (peer) => { return (params) => {
                 params.TableName = peer.name;
-            },
-            kinesis: (params) => {
+            }; },
+            kinesis: (peer) => { return (params) => {
                 params.StreamName = peer.name;
-            }
+            }; }
         }
     }
 
@@ -164,7 +164,7 @@ class Interface {
         if (!(peer.subClass in this._nativeClientParamsSetter)) {
             return null;
         }
-        var paramsSetter = this._nativeClientParamsSetter[peer.subClass];
+        var paramsSetter = this._nativeClientParamsSetter[peer.subClass](peer);
 
         var remoteServiceName = peer.subClass + '-' + name;
         return this._wrapRemoteClient(client, remoteServiceName, paramsSetter);
