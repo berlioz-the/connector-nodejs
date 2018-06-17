@@ -2,13 +2,29 @@ const _ = require('the-lodash');
 const request = require('request-promise');
 const Zipkin = require('./zipkin');
 
-class Interface
-{
-    constructor(logger, registry)
-    {
+class Interface {
+    constructor(logger, registry) {
         this._logger = logger;
         this._registry = registry;
         this._zipkin = new Zipkin(this);
+
+        this._nativeClientFetcher = {
+            dynamodb: (peer, AWS) => {
+                return new AWS.DynamoDB.DocumentClient(peer.config);
+            },
+            kinesis: (peer, AWS) => {
+                return new AWS.Kinesis(peer.config);
+            }
+        }
+
+        this._nativeClientParamsSetter = {
+            dynamodb: (params) => {
+                params.TableName = peer.name;
+            },
+            kinesis: (params) => {
+                params.StreamName = peer.name;
+            }
+        }
     }
 
     get logger() {
@@ -19,14 +35,12 @@ class Interface
         return this._zipkin;
     }
 
-    extractRoot()
-    {
+    extractRoot() {
         return this._registry.extractRoot();
     }
 
     /* ENDPOINTS */
-    monitorEndpoints(optionalEndpointName, cb)
-    {
+    monitorEndpoints(optionalEndpointName, cb) {
         if (cb === undefined) {
             cb = optionalEndpointName;
             optionalEndpointName = null;
@@ -42,30 +56,25 @@ class Interface
     }
 
     /* PEERS */
-    monitorPeers(kind, name, endpoint, cb)
-    {
+    monitorPeers(kind, name, endpoint, cb) {
         this._logger.info('MonitorPeers:: ' + JSON.stringify([kind, name, endpoint]));
         this._registry.subscribe('peers', [kind, name, endpoint], cb);
     }
 
-    getPeers(kind, name, endpoint)
-    {
+    getPeers(kind, name, endpoint) {
         return this._registry.get('peers', [kind, name, endpoint]);
     }
 
-    getRandomPeer(kind, name, endpoint)
-    {
+    getRandomPeer(kind, name, endpoint) {
         var peers = this.getPeers(kind, name, endpoint);
         return _.randomElement(_.values(peers));
     }
 
-    requestPeer(kind, name, endpoint, options)
-    {
+    requestPeer(kind, name, endpoint, options) {
         return this.request(kind, name, endpoint, options);
     }
 
-    request(kind, name, endpoint, options)
-    {
+    request(kind, name, endpoint, options) {
         var peer = this.getRandomPeer(kind, name, endpoint);
         if (!peer) {
             return Promise.resolve(false);
@@ -80,159 +89,125 @@ class Interface
     }
 
     /* DATABASES */
-    monitorDatabases(name, cb)
-    {
+    monitorDatabases(name, cb) {
         this._logger.info('MonitorDatabases:: ' + JSON.stringify([name]));
         this._registry.subscribe('databases', [name], cb);
     }
 
-    getDatabases(name)
-    {
+    getDatabases(name) {
         return this._registry.get('databases', [name]);
     }
 
-    getDatabase(name)
-    {
+    getDatabase(name) {
         var peers = this.getDatabases(name);
         return _.randomElement(_.values(peers));
     }
 
-    getDatabaseInfo(name)
-    {
-        var dbPeer = this.getDatabase(name);
-        if (!dbPeer) {
+    getDatabaseInfo(name) {
+        return this.getDatabase(name);
+    }
+
+    getDatabaseClient(name, AWS) {
+        return this._getNativeResourceClient('databases', name, AWS);
+    }
+
+    /* QUEUES */
+    monitorQueues(name, cb) {
+        this._logger.info('monitorQueues:: ' + JSON.stringify([name]));
+        this._registry.subscribe('queues', [name], cb);
+    }
+
+    getQueues(name) {
+        return this._registry.get('queues', [name]);
+    }
+
+    getQueue(name) {
+        var peers = this.getQueues(name);
+        return _.randomElement(_.values(peers));
+    }
+
+    getQueueInfo(name) {
+        return this.getQueue(name);
+    }
+
+    getQueueClient(name, AWS) {
+        return this._getNativeResourceClient('queues', name, AWS);
+    }
+
+    /* INSTRUMENTATION */
+    instrument(remoteServiceName, method, url) {
+        return this._zipkin.instrument(remoteServiceName, method, url);
+    }
+
+    /* FRAMEWORK CONFIGURATORS */
+    setupExpress(app) {
+        var Handler = require('./frameworks/express');
+        this._handler = new Handler(app, this);
+    }
+
+
+    /*******************************************************/
+
+    _getNativeResource(section, name) {
+        var peers = this._registry.get(section, [name]);
+        return _.randomElement(_.values(peers));
+    }
+
+    _getNativeResourceClient(section, name, AWS) {
+        var peer = this._getNativeResource(section, name);
+
+        if (!(peer.subClass in this._nativeClientFetcher)) {
             return null;
         }
-        var info = {
-            tableName: dbPeer.name,
-            config: {}
+        var client = this._nativeClientFetcher[peer.subClass](peer, AWS);
+
+        if (!(peer.subClass in this._nativeClientParamsSetter)) {
+            return null;
+        }
+        var paramsSetter = this._nativeClientParamsSetter[peer.subClass];
+
+        var remoteServiceName = peer.subClass + '-' + name;
+        return this._wrapRemoteClient(client, remoteServiceName, paramsSetter);
+    }
+
+    _wrapRemoteClient(toWrap, name, prepareParams) {
+        var handler = {
+            get: (target, propKey) => {
+                return (params, cb) => {
+                    const origMethod = target[propKey];
+                    if (!origMethod) {
+                        throw new Error('Method ' + propKey + ' not found.');
+                    }
+
+                    var doWork = (resolve, reject) => {
+                        prepareParams(params);
+                        var tracer = this.instrument(name, propKey, '/');
+                        origMethod.call(target, params, (err, data) => {
+                            if (err) {
+                                tracer.error(err);
+                                reject(err);
+                            } else {
+                                tracer.finish(200);
+                                resolve(data);
+                            }
+                        });
+                    };
+
+                    if (!cb) {
+                        return new Promise(doWork);
+                    } else {
+                        doWork(result => {
+                            cb(null, result);
+                        }, error => {
+                            cb(error, null);
+                        })
+                    }
+                };
+            }
         };
-        if (dbPeer.region) {
-            info.config.region = dbPeer.region;
-        }
-        if (dbPeer.credentials) {
-            info.config.credentials = dbPeer.credentials;
-        }
-        return info;
-     }
-
-     getDatabaseClient(name, AWS)
-     {
-         var dbInfo = this.getDatabaseInfo(name);
-         var docClient = new AWS.DynamoDB.DocumentClient(dbInfo.config);
-
-         return this._wrapRemoteClient(docClient, 'aws-dynamo-' + name,
-            params => {
-                var newParams = _.clone(params);
-                newParams.TableName = dbInfo.tableName;
-                return newParams;
-            });
-     }
-
-     /* QUEUES */
-     monitorQueues(name, cb)
-     {
-         this._logger.info('monitorQueues:: ' + JSON.stringify([name]));
-         this._registry.subscribe('queues', [name], cb);
-     }
-
-     getQueues(name)
-     {
-         return this._registry.get('queues', [name]);
-     }
-
-     getQueue(name)
-     {
-         var peers = this.getQueues(name);
-         return _.randomElement(_.values(peers));
-     }
-
-     getQueueInfo(name)
-     {
-         var queuePeer = this.getQueue(name);
-         if (!queuePeer) {
-             return null;
-         }
-         var info = {
-             streamName: queuePeer.name,
-             config: {}
-         };
-         if (queuePeer.region) {
-             info.config.region = queuePeer.region;
-         }
-         if (queuePeer.credentials) {
-             info.config.credentials = queuePeer.credentials;
-         }
-         return info;
-      }
-
-      getQueueClient(name, AWS)
-      {
-          var kinesisInfo = this.getQueueInfo(name);
-          var kinesis = new AWS.Kinesis(kinesisInfo.config);
-
-          return this._wrapRemoteClient(kinesis, 'aws-kinesis-' + name,
-             params => {
-                 var newParams = _.clone(params);
-                 newParams.StreamName = kinesisInfo.streamName;
-                 return newParams;
-             });
-      }
-
-      /* INSTRUMENTATION */
-      instrument(remoteServiceName, method, url)
-      {
-          return this._zipkin.instrument(remoteServiceName, method, url);
-      }
-
-      /* FRAMEWORK CONFIGURATORS */
-      setupExpress(app)
-      {
-          var Handler = require('./frameworks/express');
-          this._handler = new Handler(app, this);
-      }
-
-
-      /*******************************************************/
-       _wrapRemoteClient(toWrap, name, prepareInput)
-       {
-           var handler = {
-               get: (target, propKey) => {
-                   return (params, cb) => {
-                       const origMethod = target[propKey];
-                       if (!origMethod) {
-                           throw new Error('Method ' + propKey + ' not found.');
-                       }
-
-                       var doWork = (resolve, reject) => {
-                            var newParams = prepareInput(params);
-                            var tracer = this.instrument(name, propKey, '/');
-                            origMethod.call(target, newParams, (err, data) => {
-                                if (err) {
-                                    tracer.error(err);
-                                    reject(err);
-                                } else {
-                                    tracer.finish(200);
-                                    resolve(data);
-                                }
-                            });
-                        };
-
-                       if (!cb) {
-                           return new Promise(doWork);
-                       } else {
-                           doWork(result => {
-                               cb(null, result);
-                           }, error => {
-                               cb(error, null);
-                           })
-                       }
-                   };
-               }
-           };
-           var proxy = new Proxy(toWrap, handler);
-           return proxy;
-       }
+        var proxy = new Proxy(toWrap, handler);
+        return proxy;
+    }
 }
 
 module.exports = Interface;

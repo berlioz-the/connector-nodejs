@@ -17,6 +17,22 @@ berlioz.monitorEndpoints('client', endpoints => {
 });
 
 berlioz.monitorPeers('service', 'app', 'client', peers => {
-    console.log('PEERS:');
+    console.log('************* PEERS:');
     console.log(JSON.stringify(peers, null, 2));
+});
+
+berlioz.monitorDatabases('drugs', dbs => {
+    console.log('************* DATABASES:');
+    console.log(JSON.stringify(dbs, null, 2));
+
+    console.log('************* getDatabaseInfo:');
+    console.log(JSON.stringify(berlioz.getDatabaseInfo('drugs'), null, 2));
+});
+
+berlioz.monitorQueues('jobs', dbs => {
+    console.log('************* QUEUES:');
+    console.log(JSON.stringify(dbs, null, 2));
+
+    console.log('************* getQueueInfo:');
+    console.log(JSON.stringify(berlioz.getQueueInfo('jobs'), null, 2));
 });

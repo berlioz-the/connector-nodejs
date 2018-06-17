@@ -7,6 +7,12 @@ class Processor
     {
         this._logger = logger;
         this._registry = registry;
+
+        this._messageHandlers = {
+            endpoints: this._acceptEndpoints.bind(this),
+            peers: this._acceptPeers.bind(this)
+        }
+
         this._peerHandler = {
             service: this._handleServicePeers.bind(this),
             cluster: this._handleServicePeers.bind(this),
@@ -17,18 +23,16 @@ class Processor
 
     accept(section, data)
     {
-        if (section == 'endpoints') {
-            return this.acceptEndpoints(data);
-        }
-        if (section == 'peers') {
-            return this.acceptPeers(data);
+        this._logger.info('Accept Section: %s', section);
+
+        var handler = this._messageHandlers[section];
+        if (handler) {
+            return handler(data);
         }
     }
 
-    acceptEndpoints(message)
+    _acceptEndpoints(message)
     {
-        this._logger.info('acceptEndpoints', message);
-
         if (!message) {
             this._registry.reset('endpoints');
         } else {
@@ -41,10 +45,8 @@ class Processor
         }
     }
 
-    acceptPeers(message)
+    _acceptPeers(message)
     {
-        this._logger.info('acceptPeers', message);
-
         if (!message) {
             this._registry.reset('peers');
         } else {

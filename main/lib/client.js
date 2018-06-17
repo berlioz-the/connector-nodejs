@@ -9,7 +9,6 @@ class Client
         this._logger = logger;
         this._baseAddress = baseAddress;
         this._processor = processor;
-        this._sections = [];
 
         this._wsInfo = {
             isClosed: false,
@@ -17,30 +16,37 @@ class Client
             address: this._baseAddress
         };
 
-        this._connectSection(this._wsInfo);
+        this._connectWs();
     }
 
     close()
     {
-        this._closeSection(this._wsInfo);
+        this._wsInfo.isClosed = true;
+        if (this._wsInfo.ws) {
+            this._wsInfo.ws.terminate();
+            this._wsInfo.ws = null;
+        }
     }
 
-    _connectSection(wsInfo)
+    _connectWs()
     {
-        this._logger.info('Connecting to %s...', wsInfo.address);
+        if (this._wsInfo.ws) {
+            return;
+        }
+        this._logger.info('Connecting to %s...', this._wsInfo.address);
 
-        wsInfo.ws = new WebSocket(wsInfo.address);
+        this._wsInfo.ws = new WebSocket(this._wsInfo.address);
 
-        wsInfo.ws.on('open', () => {
+        this._wsInfo.ws.on('open', () => {
             this._logger.info('Client connected');
-            // wsInfo.handler();
+            // this._wsInfo.handler();
         });
 
-        wsInfo.ws.on('error', error => {
+        this._wsInfo.ws.on('error', error => {
             this._logger.error(error);
         });
 
-        wsInfo.ws.on('message', msg => {
+        this._wsInfo.ws.on('message', msg => {
             // this._logger.info(msg);
             var data = JSON.parse(msg);
             for(var section of _.keys(data)) {
@@ -48,30 +54,22 @@ class Client
             }
         });
 
-        wsInfo.ws.on('close', () => {
-            wsInfo.ws = null;
+        this._wsInfo.ws.on('close', () => {
+            this._wsInfo.ws = null;
             this._logger.info('Client disconnected');
-            this._reconnectSection(wsInfo);
+            this._reconnectSection();
         });
     }
 
-    _reconnectSection(wsInfo)
+    _reconnectSection()
     {
-        if (wsInfo.isClosed) {
+        if (this._wsInfo.isClosed) {
             return;
         }
 
         this._logger.info('Reconnecting after timeout...');
         return Promise.timeout(2000)
-            .then(() => this._connectSection(wsInfo));
-    }
-
-    _closeSection(wsInfo)
-    {
-        wsInfo.isClosed = true;
-        if (wsInfo.ws) {
-            wsInfo.ws.terminate();
-        }
+            .then(() => this._connectWs());
     }
 }
 
