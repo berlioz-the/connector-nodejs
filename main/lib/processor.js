@@ -9,6 +9,7 @@ class Processor
         this._registry = registry;
 
         this._messageHandlers = {
+            policies: this._acceptPolicies.bind(this),
             endpoints: this._acceptEndpoints.bind(this),
             peers: this._acceptPeers.bind(this)
         }
@@ -31,6 +32,15 @@ class Processor
         }
     }
 
+    _acceptPolicies(message)
+    {
+        if (!message) {
+            this._registry.reset('policies');
+        } else {
+            this._registry.set('policies', [], message);
+        }
+    }
+
     _acceptEndpoints(message)
     {
         if (!message) {
@@ -48,7 +58,8 @@ class Processor
     _acceptPeers(message)
     {
         if (!message) {
-            this._registry.reset('peers');
+            this._registry.reset('service');
+            this._registry.reset('cluster');
         } else {
             for(var kind of _.keys(message))
             {
@@ -68,7 +79,7 @@ class Processor
             for(var endpoint of _.keys(serviceData))
             {
                 var endpointData = serviceData[endpoint];
-                this._registry.set('peers', [kind, name, endpoint], endpointData);
+                this._registry.set(kind, [name, endpoint], endpointData);
             }
         }
     }
@@ -78,7 +89,7 @@ class Processor
         for(var name of _.keys(data))
         {
             var endpointData = data[name];
-            this._registry.set('databases', [name], endpointData);
+            this._registry.set('database', [name], endpointData);
         }
     }
 
@@ -87,7 +98,7 @@ class Processor
         for(var name of _.keys(data))
         {
             var endpointData = data[name];
-            this._registry.set('queues', [name], endpointData);
+            this._registry.set('queue', [name], endpointData);
         }
     }
 }

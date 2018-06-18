@@ -8,13 +8,15 @@ var logger = require('the-logger').setup('bunyan', 'BerliozConnector', {
 // logger.level = 'error';
 
 const Registry = require('./lib/registry');
+const Policy = require('./lib/policy');
 const Processor = require('./lib/processor');
 const Interface = require('./lib/interface');
 const Client = require('./lib/client');
 
 var registry = new Registry(logger.sublogger('BerliozRegistry'));
+var policy = new Policy(registry);
 var processor = new Processor(logger.sublogger('BerliozProcessor'), registry);
-var intf = new Interface(logger, registry);
+var intf = new Interface(logger, registry, policy);
 var client = new Client(logger.sublogger('BerliozClient'), process.env.BERLIOZ_AGENT_PATH, processor);
 
 module.exports = intf;

@@ -36,3 +36,18 @@ berlioz.monitorQueues('jobs', dbs => {
     console.log('************* getQueueInfo:');
     console.log(JSON.stringify(berlioz.getQueueInfo('jobs'), null, 2));
 });
+
+const Promise = require('the-promise');
+const Executor = require('../main/lib/executor');
+const Policy = require('../main/lib/policy');
+
+return Promise.timeout(1000)
+    .then(() => {
+        var options = { url: '/get/item', method: 'GET', headers: {aaa: 1234} };
+        return berlioz.request('service', 'app', 'clientzzz', options);
+
+    })
+    .catch(reason => {
+        console.log('GLOBAL ERROR: ' + reason);
+        console.log(reason);
+    })

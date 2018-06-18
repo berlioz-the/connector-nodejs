@@ -1,12 +1,14 @@
 const _ = require('the-lodash');
 const request = require('request-promise');
 const Zipkin = require('./zipkin');
+const Executor = require('./executor');
 
 class Interface {
-    constructor(logger, registry) {
+    constructor(logger, registry, policy) {
         this._logger = logger;
         this._registry = registry;
-        this._zipkin = new Zipkin(this);
+        this._policy = policy;
+        this._zipkin = new Zipkin();
 
         this._nativeClientFetcher = {
             dynamodb: (peer, AWS) => {
@@ -58,11 +60,11 @@ class Interface {
     /* PEERS */
     monitorPeers(kind, name, endpoint, cb) {
         this._logger.info('MonitorPeers:: ' + JSON.stringify([kind, name, endpoint]));
-        this._registry.subscribe('peers', [kind, name, endpoint], cb);
+        this._registry.subscribe(kind, [name, endpoint], cb);
     }
 
     getPeers(kind, name, endpoint) {
-        return this._registry.get('peers', [kind, name, endpoint]);
+        return this._registry.get(kind, [name, endpoint]);
     }
 
     getRandomPeer(kind, name, endpoint) {
@@ -70,32 +72,40 @@ class Interface {
         return _.randomElement(_.values(peers));
     }
 
-    requestPeer(kind, name, endpoint, options) {
-        return this.request(kind, name, endpoint, options);
-    }
+    request(kind, name, endpoint, options, cb) {
+        this._logger.silly('REQUEST, orig options: ', options);
 
-    request(kind, name, endpoint, options) {
-        var peer = this.getRandomPeer(kind, name, endpoint);
-        if (!peer) {
-            return Promise.resolve(false);
-        }
-        var myOptions = _.clone(options);
-        myOptions.timeout = 5000;
-        myOptions.url = peer.protocol + '://' + peer.address + ':' + peer.port;
-        if (options.url) {
-            myOptions.url += options.url;
-        }
-        return this._zipkin.makeRequest(myOptions, process.env.BERLIOZ_CLUSTER + '-' + name);
+        var target = [kind, name, endpoint];
+
+        var options = _.clone(options);
+        var url = options.url;
+        options.timeout = this._policy.resolve('timeout', target);
+
+        var executor = new Executor(this._registry, this._policy, this._zipkin,
+            target,
+            options.method || 'GET', url,
+            (peer) => {
+
+                options.url = peer.protocol + '://' + peer.address + ':' + peer.port;
+                if (url) {
+                    options.url += url;
+                }
+                var finalOptions = this._zipkin.addZipkinHeaders(options);
+
+                this._logger.silly('REQUEST, newOptions: ', finalOptions);
+                return request(finalOptions);
+            });
+        return executor.perform(cb);
     }
 
     /* DATABASES */
     monitorDatabases(name, cb) {
         this._logger.info('MonitorDatabases:: ' + JSON.stringify([name]));
-        this._registry.subscribe('databases', [name], cb);
+        this._registry.subscribe('database', [name], cb);
     }
 
     getDatabases(name) {
-        return this._registry.get('databases', [name]);
+        return this._registry.get('database', [name]);
     }
 
     getDatabase(name) {
@@ -108,17 +118,17 @@ class Interface {
     }
 
     getDatabaseClient(name, AWS) {
-        return this._getNativeResourceClient('databases', name, AWS);
+        return this._getNativeResourceClient('database', name, AWS);
     }
 
     /* QUEUES */
     monitorQueues(name, cb) {
         this._logger.info('monitorQueues:: ' + JSON.stringify([name]));
-        this._registry.subscribe('queues', [name], cb);
+        this._registry.subscribe('queue', [name], cb);
     }
 
     getQueues(name) {
-        return this._registry.get('queues', [name]);
+        return this._registry.get('queue', [name]);
     }
 
     getQueue(name) {
@@ -131,7 +141,7 @@ class Interface {
     }
 
     getQueueClient(name, AWS) {
-        return this._getNativeResourceClient('queues', name, AWS);
+        return this._getNativeResourceClient('queue', name, AWS);
     }
 
     /* INSTRUMENTATION */
@@ -154,59 +164,52 @@ class Interface {
     }
 
     _getNativeResourceClient(section, name, AWS) {
-        var peer = this._getNativeResource(section, name);
-
-        if (!(peer.subClass in this._nativeClientFetcher)) {
-            return null;
-        }
-        var client = this._nativeClientFetcher[peer.subClass](peer, AWS);
-
-        if (!(peer.subClass in this._nativeClientParamsSetter)) {
-            return null;
-        }
-        var paramsSetter = this._nativeClientParamsSetter[peer.subClass](peer);
-
-        var remoteServiceName = peer.subClass + '-' + name;
-        return this._wrapRemoteClient(client, remoteServiceName, paramsSetter);
+        return this._wrapRemoteClient([section, name], AWS);
     }
 
-    _wrapRemoteClient(toWrap, name, prepareParams) {
+    _wrapRemoteClient(targetNaming, AWS) {
         var handler = {
             get: (target, propKey) => {
                 return (params, cb) => {
-                    const origMethod = target[propKey];
-                    if (!origMethod) {
-                        throw new Error('Method ' + propKey + ' not found.');
-                    }
 
-                    var doWork = (resolve, reject) => {
-                        prepareParams(params);
-                        var tracer = this.instrument(name, propKey, '/');
-                        origMethod.call(target, params, (err, data) => {
-                            if (err) {
-                                tracer.error(err);
-                                reject(err);
-                            } else {
-                                tracer.finish(200);
-                                resolve(data);
+                    var executor = new Executor(this._registry, this._policy, this._zipkin,
+                        targetNaming,
+                        propKey, '/',
+                        (peer) => {
+
+                            if (!(peer.subClass in this._nativeClientFetcher)) {
+                                throw new Error(targetNaming[0] + ' ' + peer.subClass + ' not supported');
                             }
-                        });
-                    };
+                            var client = this._nativeClientFetcher[peer.subClass](peer, AWS);
 
-                    if (!cb) {
-                        return new Promise(doWork);
-                    } else {
-                        doWork(result => {
-                            cb(null, result);
-                        }, error => {
-                            cb(error, null);
-                        })
-                    }
+                            const origMethod = client[propKey];
+                            if (!origMethod) {
+                                throw new Error('Method ' + propKey + ' not found.');
+                            }
+
+                            if (!(peer.subClass in this._nativeClientParamsSetter)) {
+                                throw new Error(targetNaming[0] + ' ' + peer.subClass + ' not supported');
+                            }
+                            var paramsSetter = this._nativeClientParamsSetter[peer.subClass](peer);
+                            paramsSetter(params);
+
+                            return new Promise((resolve, reject) => {
+                                origMethod.call(client, params, (err, data) => {
+                                    if (err) {
+                                        reject(err);
+                                    } else {
+                                        resolve(data);
+                                    }
+                                });
+                            });
+
+                        });
+                    return executor.perform(cb);
+
                 };
             }
         };
-        var proxy = new Proxy(toWrap, handler);
-        return proxy;
+        return new Proxy({}, handler);
     }
 }
 

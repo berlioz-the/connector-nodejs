@@ -1,6 +1,7 @@
 const {
     Tracer,
     Annotation,
+    Request,
     BatchRecorder,
     jsonEncoder: {
         JSON_V2
@@ -14,16 +15,14 @@ const {
 } = require('zipkin-transport-http');
 const CLSContext = require('zipkin-context-cls');
 
-const wrapRequest = require('zipkin-instrumentation-request');
-const request = require('request');
 const Promise = require('the-promise');
 
 class Zipkin {
-    constructor(berlioz) {
-        this._berlioz = berlioz;
+    constructor() {
         this._localServiceName = process.env.BERLIOZ_CLUSTER + '-' + process.env.BERLIOZ_SERVICE;
 
         const ctxImpl = new CLSContext('zipkin');
+        // const recorder = new ConsoleRecorder();
         const recorder = new BatchRecorder({
             logger: new HttpLogger({
                 endpoint: process.env.BERLIOZ_ZIPKIN_PATH, //'http://172.17.0.10:9411/api/v2/spans',
@@ -38,31 +37,8 @@ class Zipkin {
         });
     }
 
-    makeRequest(options, remoteServiceName) {
-        const zipkinRequest = wrapRequest(request, {
-            tracer: this.tracer,
-            remoteServiceName
-        });
-        console.log('Making request to ' + options.url + ' traceId: ' + this.tracer.id);
-        return new Promise((resolve, reject) => {
-            console.log('Inside promise ' + options.url + ' traceId: ' + this.tracer.id);
-            zipkinRequest(options, (error, response, body) => {
-                console.log('Inside response ' + options.url + ' traceId: ' + this.tracer.id);
-                if (error) {
-                    return reject({
-                        error: error,
-                        url: options.url
-                    });
-                }
-                resolve({
-                    statusCode: response.statusCode,
-                    body: response.body,
-                    headers: response.headers,
-                    request: response.request,
-                    url: options.url
-                });
-            });
-        });
+    addZipkinHeaders(request) {
+        return Request.addZipkinHeaders(request, this.tracer.id);
     }
 
     instrument(remoteServiceName, method, url)
