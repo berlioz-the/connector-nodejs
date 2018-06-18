@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aws-sdk": "^2.259.1",
     "the-promise": "^1.0.28"
   }
 }

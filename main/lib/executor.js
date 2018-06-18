@@ -3,8 +3,9 @@ const Promise = require('the-promise');
 
 class Executor
 {
-    constructor(registry, policy, zipkin, target, trackerMethod, trackerUrl, actionCb)
+    constructor(logger, registry, policy, zipkin, target, trackerMethod, trackerUrl, actionCb)
     {
+        this._logger = logger;
         this._registry = registry;
         this._policy = policy;
         this._target = target;
@@ -13,6 +14,7 @@ class Executor
         this._actionCb = actionCb;
 
         if (this._resolvePolicy('enable-zipkin')) {
+            this._logger.info('Zipkin is enabled.');
             this._zipkin = zipkin;
         }
 
@@ -49,14 +51,6 @@ class Executor
                 this._context.lastError = null;
                 this._context.tryCount++;
                 return this._perform();
-            })
-            .then(result => {
-                this._context.result = result;
-            })
-            .catch(reason => {
-                this._context.hasError = true;
-                this._context.lastError = reason;
-                console.log('retry::catch: ' + reason);
             })
             .then(() => {
                 if (this._checkCompleted()) {
@@ -106,7 +100,17 @@ class Executor
         }
 
         var tracer = this._instrument(this._remoteServiceName, this._trackerMethod, this._trackerUrl);
-        return this._actionCb(peer);
+        return Promise.resolve(this._actionCb(peer))
+            .then(result => {
+                tracer.finish(200);
+                this._context.result = result;
+            })
+            .catch(reason => {
+                tracer.error(reason);
+                this._context.hasError = true;
+                this._context.lastError = reason;
+                this._logger.error('Executor::_perform::catch: ', reason);
+            });
     }
 
     _fetchPeer()

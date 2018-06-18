@@ -40,12 +40,25 @@ berlioz.monitorQueues('jobs', dbs => {
 const Promise = require('the-promise');
 const Executor = require('../main/lib/executor');
 const Policy = require('../main/lib/policy');
+const AWS = require('aws-sdk');
 
 return Promise.timeout(1000)
     .then(() => {
-        var options = { url: '/get/item', method: 'GET', headers: {aaa: 1234} };
-        return berlioz.request('service', 'app', 'clientzzz', options);
+        // var options = { url: '/get/item', method: 'GET', headers: {aaa: 1234} };
+        // return berlioz.request('service', 'app', 'clientzzz', options);
 
+        var docClient = berlioz.getDatabaseClient('drugs', AWS);
+        var params = {
+            Item: {
+                'name': 'lalala',
+                'art': 'zzz'
+            }
+        };
+        return docClient.put(params);
+
+    })
+    .then(result => {
+        console.log(result);
     })
     .catch(reason => {
         console.log('GLOBAL ERROR: ' + reason);

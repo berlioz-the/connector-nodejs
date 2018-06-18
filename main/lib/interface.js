@@ -81,7 +81,7 @@ class Interface {
         var url = options.url;
         options.timeout = this._policy.resolve('timeout', target);
 
-        var executor = new Executor(this._registry, this._policy, this._zipkin,
+        var executor = new Executor(this._logger, this._registry, this._policy, this._zipkin,
             target,
             options.method || 'GET', url,
             (peer) => {
@@ -118,7 +118,7 @@ class Interface {
     }
 
     getDatabaseClient(name, AWS) {
-        return this._getNativeResourceClient('database', name, AWS);
+        return this._getNativeResourceClient(['database', name], AWS);
     }
 
     /* QUEUES */
@@ -141,7 +141,7 @@ class Interface {
     }
 
     getQueueClient(name, AWS) {
-        return this._getNativeResourceClient('queue', name, AWS);
+        return this._getNativeResourceClient(['queue', name], AWS);
     }
 
     /* INSTRUMENTATION */
@@ -163,49 +163,62 @@ class Interface {
         return _.randomElement(_.values(peers));
     }
 
-    _getNativeResourceClient(section, name, AWS) {
-        return this._wrapRemoteClient([section, name], AWS);
-    }
-
-    _wrapRemoteClient(targetNaming, AWS) {
+    _getNativeResourceClient(targetNaming, AWS) {
+        this._logger.info('[_getNativeResourceClient] ', targetNaming)
         var handler = {
             get: (target, propKey) => {
                 return (params, cb) => {
+                    try {
+                        this._logger.info('[_getNativeResourceClient] %s', propKey)
 
-                    var executor = new Executor(this._registry, this._policy, this._zipkin,
-                        targetNaming,
-                        propKey, '/',
-                        (peer) => {
+                        var executor = new Executor(this._logger, this._registry, this._policy, this._zipkin,
+                            targetNaming,
+                            propKey, '/',
+                            (peer) => {
+                                this._logger.info('[_getNativeResourceClient] exec %s', propKey)
 
-                            if (!(peer.subClass in this._nativeClientFetcher)) {
-                                throw new Error(targetNaming[0] + ' ' + peer.subClass + ' not supported');
-                            }
-                            var client = this._nativeClientFetcher[peer.subClass](peer, AWS);
+                                if (!(peer.subClass in this._nativeClientFetcher)) {
+                                    throw new Error(targetNaming[0] + ' ' + peer.subClass + ' not supported');
+                                }
+                                var client = this._nativeClientFetcher[peer.subClass](peer, AWS);
 
-                            const origMethod = client[propKey];
-                            if (!origMethod) {
-                                throw new Error('Method ' + propKey + ' not found.');
-                            }
+                                const origMethod = client[propKey];
+                                if (!origMethod) {
+                                    throw new Error('Method ' + propKey + ' not found.');
+                                }
 
-                            if (!(peer.subClass in this._nativeClientParamsSetter)) {
-                                throw new Error(targetNaming[0] + ' ' + peer.subClass + ' not supported');
-                            }
-                            var paramsSetter = this._nativeClientParamsSetter[peer.subClass](peer);
-                            paramsSetter(params);
+                                if (!(peer.subClass in this._nativeClientParamsSetter)) {
+                                    throw new Error(targetNaming[0] + ' ' + peer.subClass + ' not supported');
+                                }
+                                var paramsSetter = this._nativeClientParamsSetter[peer.subClass](peer);
+                                paramsSetter(params);
 
-                            return new Promise((resolve, reject) => {
-                                origMethod.call(client, params, (err, data) => {
-                                    if (err) {
-                                        reject(err);
-                                    } else {
-                                        resolve(data);
-                                    }
+                                this._logger.info('[_getNativeResourceClient] params ', params)
+
+                                return new Promise((resolve, reject) => {
+                                    this._logger.info('[_getNativeResourceClient] calling ');
+
+                                    origMethod.call(client, params, (err, data) => {
+                                        if (err) {
+                                            this._logger.info('[_getNativeResourceClient] err ');
+                                            reject(err);
+                                        } else {
+                                            this._logger.info('[_getNativeResourceClient] done ');
+                                            resolve(data);
+                                        }
+                                    });
                                 });
+
                             });
-
-                        });
-                    return executor.perform(cb);
-
+                        return executor.perform(cb);
+                    } catch (e) {
+                        this._logger.exception(e);
+                        if (cb) {
+                            cb(e, null);
+                        } else {
+                            return Promise.reject(e);
+                        }
+                    }
                 };
             }
         };

@@ -19,6 +19,9 @@ class Policy
     resolve(name, target)
     {
         var root = this._registry.get('policies', []);
+        if (!root) {
+            root = {};
+        }
         var value = this._resolve(root, name, target);
         if (_.isNotNullOrUndefined(value)) {
             return value;
@@ -49,7 +52,10 @@ class Policy
         if (_.isNotNullOrUndefined(value)) {
             return value;
         }
-        return root.values[name];
+        if (root.values) {
+            return root.values[name];
+        }
+        return null;
     }
 }
 
