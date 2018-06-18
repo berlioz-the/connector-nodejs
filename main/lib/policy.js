@@ -6,7 +6,7 @@ class Policy
     {
         this._registry = registry;
         this._defaults = {
-            'enable-zipkin': false,
+            'enable-zipkin': true,
             'timeout': 5000,
             'no-peer-retry': true,
             'retry-count': 3,
