@@ -84,13 +84,14 @@ class Interface {
         var executor = new Executor(this._logger, this._registry, this._policy, this._zipkin,
             target,
             options.method || 'GET', url,
-            (peer) => {
+            (peer, traceId) => {
 
                 options.url = peer.protocol + '://' + peer.address + ':' + peer.port;
                 if (url) {
                     options.url += url;
                 }
-                var finalOptions = this._zipkin.addZipkinHeaders(options);
+
+                var finalOptions = this._zipkin.addZipkinHeaders(options, traceId);
 
                 this._logger.silly('REQUEST, newOptions: ', finalOptions);
                 return request(finalOptions);

@@ -100,7 +100,7 @@ class Executor
         }
 
         var tracer = this._instrument(this._remoteServiceName, this._trackerMethod, this._trackerUrl);
-        return Promise.resolve(this._actionCb(peer))
+        return Promise.resolve(this._actionCb(peer, tracer.traceId))
             .then(result => {
                 tracer.finish(200);
                 this._context.result = result;

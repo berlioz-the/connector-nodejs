@@ -37,8 +37,8 @@ class Zipkin {
         });
     }
 
-    addZipkinHeaders(request) {
-        return Request.addZipkinHeaders(request, this.tracer.id);
+    addZipkinHeaders(request, traceId) {
+        return Request.addZipkinHeaders(request, traceId);
     }
 
     instrument(remoteServiceName, method, url)
@@ -68,6 +68,7 @@ class Zipkin {
             };
 
             return {
+                traceId: traceId,
                 finish: recordResponse,
                 error: recordError
             }
