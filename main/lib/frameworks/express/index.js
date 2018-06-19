@@ -2,11 +2,9 @@ const _ = require('the-lodash');
 
 class Handler
 {
-    constructor(app, berlioz)
+    constructor(app, berlioz, policy)
     {
-        this._app = app;
-        this._berlioz = berlioz;
-        require('./zipkin')(app, berlioz);
+        require('./zipkin')(app, berlioz, policy);
         require('./body-parser')(app, berlioz);
         require('./debugger')(app, berlioz);
     }

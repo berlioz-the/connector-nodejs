@@ -1,13 +1,23 @@
 const zipkinMiddleware = require('zipkin-instrumentation-express').expressMiddleware;
 
-module.exports = function(app, berlioz) {
+module.exports = function(app, berlioz, policy) {
+
+    var middleware = zipkinMiddleware({tracer: berlioz.zipkin.tracer});
+    var enableZipkin = false;
+
+    policy.monitor('enable-zipkin', [], value => {
+        enableZipkin = value;
+    });
 
     app.use((req, res, next) => {
-        var mid = zipkinMiddleware({tracer: berlioz.zipkin.tracer});
-        mid(req, res, () => {
-            req.tracerId = berlioz.zipkin.tracer.id;
+        if (enableZipkin) {
+            middleware(req, res, () => {
+                req.tracerId = berlioz.zipkin.tracer.id;
+                next();
+            });
+        } else {
             next();
-        });
+        }
     });
 
 };

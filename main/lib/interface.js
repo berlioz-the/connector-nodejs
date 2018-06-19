@@ -8,7 +8,7 @@ class Interface {
         this._logger = logger;
         this._registry = registry;
         this._policy = policy;
-        this._zipkin = new Zipkin();
+        this._zipkin = new Zipkin(policy);
 
         this._nativeClientFetcher = {
             dynamodb: (peer, AWS) => {
@@ -91,7 +91,12 @@ class Interface {
                     options.url += url;
                 }
 
-                var finalOptions = this._zipkin.addZipkinHeaders(options, traceId);
+                var finalOptions;
+                if (traceId) {
+                    finalOptions = this._zipkin.addZipkinHeaders(options, traceId);
+                } else {
+                    finalOptions = options;
+                }
 
                 this._logger.silly('REQUEST, newOptions: ', finalOptions);
                 return request(finalOptions);
@@ -153,7 +158,7 @@ class Interface {
     /* FRAMEWORK CONFIGURATORS */
     setupExpress(app) {
         var Handler = require('./frameworks/express');
-        this._handler = new Handler(app, this);
+        this._handler = new Handler(app, this, this._policy);
     }
 
 

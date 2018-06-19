@@ -18,18 +18,21 @@ const CLSContext = require('zipkin-context-cls');
 const Promise = require('the-promise');
 
 class Zipkin {
-    constructor() {
+    constructor(policy) {
         this._localServiceName = process.env.BERLIOZ_CLUSTER + '-' + process.env.BERLIOZ_SERVICE;
 
         const ctxImpl = new CLSContext('zipkin');
-        // const recorder = new ConsoleRecorder();
-        const recorder = new BatchRecorder({
-            logger: new HttpLogger({
-                endpoint: process.env.BERLIOZ_ZIPKIN_PATH, //'http://172.17.0.10:9411/api/v2/spans',
-                jsonEncoder: JSON_V2, // optional, defaults to JSON_V1
-                httpInterval: 1000 // how often to sync spans. optional, defaults to 1000
-            })
+
+        this.logger = new HttpLogger({
+            endpoint: '',
+            jsonEncoder: JSON_V2, // optional, defaults to JSON_V1
+            httpInterval: 1000 // how often to sync spans. optional, defaults to 1000
         });
+        policy.monitor('zipkin-endpoint', [], value => {
+            this.logger.endpoint = value;
+        });
+        const recorder = new BatchRecorder({logger: this.logger});
+        // const recorder = new ConsoleRecorder();
         this.tracer = new Tracer({
             ctxImpl,
             recorder,

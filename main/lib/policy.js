@@ -6,7 +6,8 @@ class Policy
     {
         this._registry = registry;
         this._defaults = {
-            'enable-zipkin': true,
+            'enable-zipkin': false,
+            'zipkin-endpoint': '',
             'timeout': 5000,
             'no-peer-retry': true,
             'retry-count': 3,
@@ -16,11 +17,27 @@ class Policy
         }
     }
 
+    monitor(name, target, cb)
+    {
+        var currValue = this.resolve(name, target);
+        cb(currValue);
+        this._registry.subscribe('policies', [], () => {
+            var newValue = this.resolve(name, target);
+            if (currValue != newValue) {
+                currValue = newValue;
+                cb(currValue);
+            }
+        });
+    }
+
     resolve(name, target)
     {
         var root = this._registry.get('policies', []);
         if (!root) {
             root = {};
+        }
+        if (!target) {
+            target = [];
         }
         var value = this._resolve(root, name, target);
         if (_.isNotNullOrUndefined(value)) {

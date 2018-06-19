@@ -129,14 +129,19 @@ class Executor
 
     _instrument(remoteServiceName, method, url)
     {
+        var result;
         if (this._zipkin) {
-            return this._zipkin.instrument(remoteServiceName, method, url);
-        } else {
-            return {
+            result = this._zipkin.instrument(remoteServiceName, method, url);
+        }
+        if (!result)
+        {
+            result = {
+                traceId: null,
                 finish: () => {},
                 error: () => {}
             };
         }
+        return result;
     }
 
     _resolvePolicy(name)
