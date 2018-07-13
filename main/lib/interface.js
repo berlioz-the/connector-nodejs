@@ -2,6 +2,8 @@ const _ = require('the-lodash');
 const request = require('request-promise');
 const Zipkin = require('./zipkin');
 const Executor = require('./executor');
+const SecretPublicKeyClient = require('./secret-public-key-client')
+const SecretPrivateKeyClient = require('./secret-private-key-client')
 
 class Interface {
     constructor(logger, registry, policy) {
@@ -16,6 +18,9 @@ class Interface {
             },
             kinesis: (peer, AWS) => {
                 return new AWS.Kinesis(peer.config);
+            },
+            "rsa-secret": (peer, AWS) => {
+                return new AWS.SSM(peer.config);
             }
         }
 
@@ -25,6 +30,9 @@ class Interface {
             }; },
             kinesis: (peer) => { return (params) => {
                 params.StreamName = peer.name;
+            }; },
+            "rsa-secret": (peer) => { return (params) => {
+                params.Name = peer.name;
             }; }
         }
     }
@@ -148,6 +156,60 @@ class Interface {
 
     getQueueClient(name, AWS) {
         return this._getNativeResourceClient(['queue', name], AWS);
+    }
+
+    /* SECRET PUBLIC KEY */
+    monitorSecretPublicKey(name, cb) {
+        this._logger.info('monitorSecretPublicKey:: ' + JSON.stringify([name]));
+        this._registry.subscribe('secret_public_key', [name], cb);
+    }
+
+    getSecretPublicKeys(name) {
+        return this._registry.get('secret_public_key', [name]);
+    }
+
+    getSecretPublicKey(name) {
+        var peers = this.getSecretPublicKeys(name);
+        return _.randomElement(_.values(peers));
+    }
+
+    getSecretPublicKeyInfo(name) {
+        return this.getSecretPublicKey(name);
+    }
+
+    getSecretPublicKeyClient(name, AWS) {
+        return this._getNativeResourceClient(['secret_public_key', name], AWS);
+    }
+
+    getSecretPublicKeyX(name, AWS) {
+        return new SecretPublicKeyClient(this, name, AWS);
+    }
+
+    /* SECRET PRIVATE KEY */
+    monitorSecretPrivateKey(name, cb) {
+        this._logger.info('monitorSecretPrivateKey:: ' + JSON.stringify([name]));
+        this._registry.subscribe('secret_private_key', [name], cb);
+    }
+
+    getSecretPrivateKeys(name) {
+        return this._registry.get('secret_private_key', [name]);
+    }
+
+    getSecretPrivateKey(name) {
+        var peers = this.getSecretPrivateKeys(name);
+        return _.randomElement(_.values(peers));
+    }
+
+    getSecretPrivateKeyInfo(name) {
+        return this.getSecretPrivateKey(name);
+    }
+
+    getSecretPrivateKeyClient(name, AWS) {
+        return this._getNativeResourceClient(['secret_private_key', name], AWS);
+    }
+
+    getSecretPrivateKeyX(name, AWS) {
+        return new SecretPrivateKeyClient(this, name, AWS);
     }
 
     /* INSTRUMENTATION */

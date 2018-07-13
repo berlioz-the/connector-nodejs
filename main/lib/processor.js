@@ -18,7 +18,9 @@ class Processor
             service: this._handleServicePeers.bind(this),
             cluster: this._handleServicePeers.bind(this),
             database: this._handleDatabasePeers.bind(this),
-            queue: this._handleQueuePeers.bind(this)
+            queue: this._handleQueuePeers.bind(this),
+            secret_public_key: this._handleSecretPeers.bind(this),
+            secret_private_key: this._handleSecretPeers.bind(this)
         };
     }
 
@@ -99,6 +101,15 @@ class Processor
         {
             var endpointData = data[name];
             this._registry.set('queue', [name], endpointData);
+        }
+    }
+
+    _handleSecretPeers(kind, data)
+    {
+        for(var name of _.keys(data))
+        {
+            var endpointData = data[name];
+            this._registry.set(kind, [name], endpointData);
         }
     }
 }
