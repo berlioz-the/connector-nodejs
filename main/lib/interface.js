@@ -2,8 +2,7 @@ const _ = require('the-lodash');
 const request = require('request-promise');
 const Zipkin = require('./zipkin');
 const Executor = require('./executor');
-const SecretPublicKeyClient = require('./secret-public-key-client')
-const SecretPrivateKeyClient = require('./secret-private-key-client')
+const SecretClient = require('./secret-client')
 
 class Interface {
     constructor(logger, registry, policy) {
@@ -181,10 +180,6 @@ class Interface {
         return this._getNativeResourceClient(['secret_public_key', name], AWS);
     }
 
-    getSecretPublicKeyX(name, AWS) {
-        return new SecretPublicKeyClient(this, name, AWS);
-    }
-
     /* SECRET PRIVATE KEY */
     monitorSecretPrivateKey(name, cb) {
         this._logger.info('monitorSecretPrivateKey:: ' + JSON.stringify([name]));
@@ -208,8 +203,9 @@ class Interface {
         return this._getNativeResourceClient(['secret_private_key', name], AWS);
     }
 
-    getSecretPrivateKeyX(name, AWS) {
-        return new SecretPrivateKeyClient(this, name, AWS);
+    /* SECRET PUBLIC & PRIVATE KEY */
+    getSecret(name, AWS) {
+        return new SecretClient(this, name, AWS);
     }
 
     /* INSTRUMENTATION */

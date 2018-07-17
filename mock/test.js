@@ -1,7 +1,7 @@
 // const INSTANCE_IP = 'ec2-52-202-201-228.compute-1.amazonaws.com';
 const INSTANCE_IP = 'localhost';
 const PORT = 40000;
-const TARGET_IP = '6249834c-ba15-48b3-803f-32799aa3aad5';
+const TARGET_IP = '9a42261e-28ff-4b6d-8259-2815e503b941';
 
 process.env.BERLIOZ_AGENT_PATH = 'ws://' + INSTANCE_IP + ':' + PORT + '/' + TARGET_IP;
 
@@ -46,7 +46,7 @@ berlioz.monitorSecretPublicKey('personal', keys => {
     console.log('************* getSecretPublicKeyInfo:');
     console.log(JSON.stringify(berlioz.getSecretPublicKeyInfo('personal'), null, 2));
 
-    // var x = berlioz.getSecretPublicKeyX('personal', AWS);
+    // var x = berlioz.getSecret('personal', AWS);
     // x.encrypt('lalala')
     //     .then(result => {
     //         console.log('ENCRYPTED: ' + result)
@@ -60,7 +60,7 @@ berlioz.monitorSecretPrivateKey('personal', keys => {
     console.log('************* getSecretPrivateKeyInfo:');
     console.log(JSON.stringify(berlioz.getSecretPrivateKeyInfo('personal'), null, 2));
 
-    // var x = berlioz.getSecretPrivateKeyX('personal', AWS);
+    // var x = berlioz.getSecret('personal', AWS);
     // x.decrypt('X4F6Y3iIuMr1NLzal2RsQF7cpzCNpaUHL34j0stUQJ45l2Ts4pLf8jPQECelRzOHzyzgaCd3JPDNPBZDRf4/ChL1FTAehr6l+f3IEhgJ1pYJP6glgcen2VTcdypZltZ/G9jY6sQau4UuWQ02y5uE/wRpTGuODQ82SxPIboMt5TznwReqfR0ceEL50vMHt16KQqN0eQP9hLQCq2PnQtswek6Gzyz6cmmpzEJxodO+08Zoa0xZB/hslPHDsAjywI3atgDF4gvoSIxvII0blLIBmpzX56e3EyDNs5gbeiZtHmkcHi6Vty36MwzGWLEUkyp1WR2sJ2y1WFyL8TtNBy8rGg==')
     //     .then(result => {
     //         console.log('DECRYPTED: ' + result)
@@ -74,6 +74,15 @@ const AWS = require('aws-sdk');
 
 return Promise.timeout(1000)
     .then(() => {
+
+        // return Promise.resolve()
+        //     .then(() => berlioz.getSecret('personal', AWS).encrypt('lalaadfasdfla'))
+        //     .then(encrypted => berlioz.getSecret('personal', AWS).decrypt(encrypted))
+        //     .then(decrypted => {
+        //         console.log('===================================')
+        //         console.log(decrypted.toString())
+        //     })
+
         // var options = { url: '/get/item', method: 'GET', headers: {aaa: 1234} };
         // return berlioz.request('service', 'app', 'clientzzz', options);
 
