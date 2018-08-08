@@ -67,11 +67,11 @@ class Interface {
     /* PEERS */
     monitorPeers(kind, name, endpoint, cb) {
         this._logger.info('MonitorPeers:: ' + JSON.stringify([kind, name, endpoint]));
-        this._registry.subscribe(kind, [name, endpoint], cb);
+        this._registry.subscribe('peer', [this._getServiceId(kind, name), endpoint], cb);
     }
 
     getPeers(kind, name, endpoint) {
-        return this._registry.get(kind, [name, endpoint]);
+        return this._registry.get('peer', [this._getServiceId(kind, name), endpoint]);
     }
 
     getRandomPeer(kind, name, endpoint) {
@@ -82,7 +82,7 @@ class Interface {
     request(kind, name, endpoint, options, cb) {
         this._logger.silly('REQUEST, orig options: ', options);
 
-        var target = [kind, name, endpoint];
+        var target = ['peer', this._getServiceId(kind, name), endpoint];
 
         var options = _.clone(options);
         var url = options.url;
@@ -114,11 +114,11 @@ class Interface {
     /* DATABASES */
     monitorDatabases(name, cb) {
         this._logger.info('MonitorDatabases:: ' + JSON.stringify([name]));
-        this._registry.subscribe('database', [name], cb);
+        this._registry.subscribe('peer', [this._getResourceId('database', name)], cb);
     }
 
     getDatabases(name) {
-        return this._registry.get('database', [name]);
+        return this._registry.get('peer', [this._getResourceId('database', name)]);
     }
 
     getDatabase(name) {
@@ -131,17 +131,17 @@ class Interface {
     }
 
     getDatabaseClient(name, AWS) {
-        return this._getNativeResourceClient(['database', name], AWS);
+        return this._getNativeResourceClient('database', name, AWS);
     }
 
     /* QUEUES */
     monitorQueues(name, cb) {
         this._logger.info('monitorQueues:: ' + JSON.stringify([name]));
-        this._registry.subscribe('queue', [name], cb);
+        this._registry.subscribe('peer', [this._getResourceId('queue', name)], cb);
     }
 
     getQueues(name) {
-        return this._registry.get('queue', [name]);
+        return this._registry.get('peer', [this._getResourceId('queue', name)]);
     }
 
     getQueue(name) {
@@ -154,17 +154,17 @@ class Interface {
     }
 
     getQueueClient(name, AWS) {
-        return this._getNativeResourceClient(['queue', name], AWS);
+        return this._getNativeResourceClient('queue', name, AWS);
     }
 
     /* SECRET PUBLIC KEY */
     monitorSecretPublicKey(name, cb) {
         this._logger.info('monitorSecretPublicKey:: ' + JSON.stringify([name]));
-        this._registry.subscribe('secret_public_key', [name], cb);
+        this._registry.subscribe('peer', [this._getResourceId('secret_public_key', name)], cb);
     }
 
     getSecretPublicKeys(name) {
-        return this._registry.get('secret_public_key', [name]);
+        return this._registry.get('peer', [this._getResourceId('secret_public_key', name)]);
     }
 
     getSecretPublicKey(name) {
@@ -177,17 +177,17 @@ class Interface {
     }
 
     getSecretPublicKeyClient(name, AWS) {
-        return this._getNativeResourceClient(['secret_public_key', name], AWS);
+        return this._getNativeResourceClient('secret_public_key', name, AWS);
     }
 
     /* SECRET PRIVATE KEY */
     monitorSecretPrivateKey(name, cb) {
         this._logger.info('monitorSecretPrivateKey:: ' + JSON.stringify([name]));
-        this._registry.subscribe('secret_private_key', [name], cb);
+        this._registry.subscribe('peer', [this._getResourceId('secret_private_key', name)], cb);
     }
 
     getSecretPrivateKeys(name) {
-        return this._registry.get('secret_private_key', [name]);
+        return this._registry.get('peer', [this._getResourceId('secret_private_key', name)]);
     }
 
     getSecretPrivateKey(name) {
@@ -200,7 +200,7 @@ class Interface {
     }
 
     getSecretPrivateKeyClient(name, AWS) {
-        return this._getNativeResourceClient(['secret_private_key', name], AWS);
+        return this._getNativeResourceClient('secret_private_key', name, AWS);
     }
 
     /* SECRET PUBLIC & PRIVATE KEY */
@@ -221,13 +221,31 @@ class Interface {
 
 
     /*******************************************************/
+    _getServiceId(kind, name) {
+        var serviceId;
+        if (kind == 'service') {
+            serviceId = 'service://' + [process.env.BERLIOZ_CLUSTER, process.env.BERLIOZ_SECTOR, name].join('-');
+        } else if (kind == 'cluster') {
+            serviceId = 'cluster://' + [name].join('-');
+        } else {
+            throw new Error('Invalid kind: ' + kind + ' provided');
+        }
+        return serviceId;
+    }
+
+    _getResourceId(kind, name) {
+        return kind + '://' + [process.env.BERLIOZ_CLUSTER, process.env.BERLIOZ_SECTOR, name].join('-');
+    }
+
+    /*******************************************************/
 
     _getNativeResource(section, name) {
         var peers = this._registry.get(section, [name]);
         return _.randomElement(_.values(peers));
     }
 
-    _getNativeResourceClient(targetNaming, AWS) {
+    _getNativeResourceClient(kind, name, AWS) {
+        var targetNaming = ['peer', _getResourceId(kind, name)];
         this._logger.info('[_getNativeResourceClient] ', targetNaming)
         var handler = {
             get: (target, propKey) => {

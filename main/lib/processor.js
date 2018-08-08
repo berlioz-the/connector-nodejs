@@ -13,15 +13,6 @@ class Processor
             endpoints: this._acceptEndpoints.bind(this),
             peers: this._acceptPeers.bind(this)
         }
-
-        this._peerHandler = {
-            service: this._handleServicePeers.bind(this),
-            cluster: this._handleServicePeers.bind(this),
-            database: this._handleDatabasePeers.bind(this),
-            queue: this._handleQueuePeers.bind(this),
-            secret_public_key: this._handleSecretPeers.bind(this),
-            secret_private_key: this._handleSecretPeers.bind(this)
-        };
     }
 
     accept(section, data)
@@ -60,58 +51,41 @@ class Processor
     _acceptPeers(message)
     {
         if (!message) {
-            this._registry.reset('service');
-            this._registry.reset('cluster');
+            this._registry.reset('peer');
         } else {
-            for(var kind of _.keys(message))
+            for(var serviceId of _.keys(message))
             {
-                if (kind in this._peerHandler) {
-                    var data = message[kind];
-                    this._peerHandler[kind](kind, data);
+                if (this._isEndpointService(serviceId))
+                {
+                    this._handleServicePeer(serviceId, message[serviceId])
+                }
+                else 
+                {
+                    this._handleResourcePeer(serviceId, message[serviceId])
                 }
             }
         }
     }
 
-    _handleServicePeers(kind, data)
+    _isEndpointService(serviceId)
     {
-        for(var name of _.keys(data))
+        return _.startsWith(serviceId, 'service://') || _.startsWith(serviceId, 'cluster://');
+    }
+
+    _handleServicePeer(serviceId, serviceData)
+    {
+        for(var endpoint of _.keys(serviceData))
         {
-            var serviceData = data[name];
-            for(var endpoint of _.keys(serviceData))
-            {
-                var endpointData = serviceData[endpoint];
-                this._registry.set(kind, [name, endpoint], endpointData);
-            }
+            var endpointData = serviceData[endpoint];
+            this._registry.set('peer', [serviceId, endpoint], endpointData);
         }
     }
 
-    _handleDatabasePeers(kind, data)
+    _handleResourcePeer(resourceId, resourceData)
     {
-        for(var name of _.keys(data))
-        {
-            var endpointData = data[name];
-            this._registry.set('database', [name], endpointData);
-        }
+        this._registry.set('peer', [resourceId], resourceData);
     }
 
-    _handleQueuePeers(kind, data)
-    {
-        for(var name of _.keys(data))
-        {
-            var endpointData = data[name];
-            this._registry.set('queue', [name], endpointData);
-        }
-    }
-
-    _handleSecretPeers(kind, data)
-    {
-        for(var name of _.keys(data))
-        {
-            var endpointData = data[name];
-            this._registry.set(kind, [name], endpointData);
-        }
-    }
 }
 
 module.exports = Processor;
