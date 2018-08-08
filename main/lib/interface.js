@@ -245,7 +245,7 @@ class Interface {
     }
 
     _getNativeResourceClient(kind, name, AWS) {
-        var targetNaming = ['peer', _getResourceId(kind, name)];
+        var targetNaming = ['peer', this._getResourceId(kind, name)];
         this._logger.info('[_getNativeResourceClient] ', targetNaming)
         var handler = {
             get: (target, propKey) => {
