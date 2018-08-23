@@ -1,3 +1,9 @@
+const Promise = require('the-promise');
+const AWS = require('aws-sdk');
+if (!AWS) {
+    throw new Error('missing aws')
+}
+
 // const INSTANCE_IP = 'ec2-52-202-201-228.compute-1.amazonaws.com';
 const INSTANCE_IP = 'localhost';
 const PORT = 55555;
@@ -5,9 +11,98 @@ const TARGET_IP = '82d1c32d-19bd-4e8b-a53b-7529e386b7c3';
 
 process.env.BERLIOZ_CLUSTER = 'hello';
 process.env.BERLIOZ_SECTOR = 'main';
+process.env.BERLIOZ_SERVICE = 'test';
 process.env.BERLIOZ_AGENT_PATH = 'ws://' + INSTANCE_IP + ':' + PORT + '/' + TARGET_IP;
 
 const berlioz = require('../main');
+
+berlioz.service('app', 'client').monitorAll(peers => {
+    console.log('************* MY SECTOR APP PEERS:');
+    console.log(JSON.stringify(peers, null, 2));
+});
+
+berlioz.sector('main').service('app', 'client').monitorAll(peers => {
+    console.log('************* MAIN SECTOR APP PEERS:');
+    console.log(JSON.stringify(peers, null, 2));
+});
+
+berlioz.sector('infra').service('zipkin', 'client').monitorAll(peers => {
+    console.log('************* ZIPKIN:');
+    console.log(JSON.stringify(peers, null, 2));
+});
+
+berlioz.sector('infra').service('zipkin', 'client').monitorFirst(peer => {
+    console.log('************* ZIPKIN FIRST PEER:');
+    console.log(JSON.stringify(peer, null, 2));
+});
+
+
+berlioz.sector('main').database('contacts').monitorAll(peer => {
+    console.log('************* DYNAMO ALL PEERS:');
+    console.log(JSON.stringify(peer, null, 2));
+});
+
+berlioz.sector('main').database('contacts').monitorFirst(peer => {
+    console.log('************* DYNAMO FIRST PEER:');
+    console.log(JSON.stringify(peer, null, 2));
+});
+
+return Promise.timeout(1000)
+    .then(() => {
+        var x = berlioz.sector('infra').service('zipkin', 'client').all();
+        console.log('------------------ ZIPKIN GET ALL: ' + JSON.stringify(x, null, 2));
+        x = berlioz.sector('infra').service('zipkin', 'client').first();
+        console.log('------------------ ZIPKIN GET FIRST: ' + JSON.stringify(x, null, 2));
+        x = berlioz.sector('infra').service('zipkin', 'client').random();
+        console.log('------------------ ZIPKIN GET RANDOM: ' + JSON.stringify(x, null, 2));
+
+        x = berlioz.sector('main').database('contacts').random();
+        console.log('------------------ DYANMO GET RANDOM: ' + JSON.stringify(x, null, 2));
+
+        x = berlioz.database('contacts').random();
+        console.log('------------------ DYANMO2 GET RANDOM: ' + JSON.stringify(x, null, 2));
+
+        
+    })
+    .then(() => berlioz.sector('main').database('contacts').client(AWS).scan({}))
+    .then(result => {
+        console.log('SECTOR DB Scan Result: ' + JSON.stringify(result, null, 2));
+    })
+    .then(() => berlioz.database('contacts').client(AWS).scan({}))
+    .then(result => {
+        console.log('DB Scan Result: ' + JSON.stringify(result, null, 2));
+    })
+    .then(() => berlioz.database('contacts').client(AWS).scan({}))
+    .then(result => {
+        console.log('DB Scan Result: ' + JSON.stringify(result, null, 2));
+    })
+    .then(() => berlioz.database('contacts').client(AWS).scan({}))
+    .then(result => {
+        console.log('DB Scan Result: ' + JSON.stringify(result, null, 2));
+    })
+    .then(() => {
+        var options = { url: '/entries', method: 'GET', headers: {aaa: 1234} };
+        return berlioz.service('app', 'client').request(options);
+    })
+    .then(() => {
+        var options = { url: '/entries', method: 'GET', headers: {aaa: 1234} };
+        return berlioz.service('app', 'client').request(options);
+    })
+    .then(() => {
+        var options = { url: '/entries', method: 'GET', headers: {aaa: 1234} };
+        return berlioz.service('app', 'client').request(options);
+    })
+    .then(() => {
+        var options = { url: '/entries', method: 'GET', headers: {aaa: 1234} };
+        return berlioz.service('app', 'client').request(options);
+    })
+    .catch(reason => {
+        console.log('GLOBAL ERROR: ' + reason);
+        console.log(reason);
+    })
+
+
+return;
 
 berlioz.monitorEndpoints(endpoints => {
     console.log('ENDPOINTS:');
@@ -18,28 +113,6 @@ berlioz.monitorEndpoints('client', endpoints => {
     console.log('CLIENT ENDPOINTS:');
     console.log(JSON.stringify(endpoints, null, 2));
 });
-
-berlioz.monitorPeers('service', 'app', 'client', peers => {
-    console.log('************* PEERS:');
-    console.log(JSON.stringify(peers, null, 2));
-});
-
-berlioz.monitorDatabases('drugs', dbs => {
-    console.log('************* DATABASES:');
-    console.log(JSON.stringify(dbs, null, 2));
-
-    console.log('************* getDatabaseInfo:');
-    console.log(JSON.stringify(berlioz.getDatabaseInfo('drugs'), null, 2));
-});
-
-berlioz.monitorQueues('jobs', dbs => {
-    console.log('************* QUEUES:');
-    console.log(JSON.stringify(dbs, null, 2));
-
-    console.log('************* getQueueInfo:');
-    console.log(JSON.stringify(berlioz.getQueueInfo('jobs'), null, 2));
-});
-
 
 berlioz.monitorSecretPublicKey('personal', keys => {
     console.log('************* SECRET PUBLIC KEY:');
@@ -68,11 +141,6 @@ berlioz.monitorSecretPrivateKey('personal', keys => {
     //         console.log('DECRYPTED: ' + result)
     //     })
 });
-
-const Promise = require('the-promise');
-const Executor = require('../main/lib/executor');
-const Policy = require('../main/lib/policy');
-const AWS = require('aws-sdk');
 
 return Promise.timeout(1000)
     .then(() => {

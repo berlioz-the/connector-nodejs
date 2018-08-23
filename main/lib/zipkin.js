@@ -18,26 +18,45 @@ const CLSContext = require('zipkin-context-cls');
 const Promise = require('the-promise');
 
 class Zipkin {
-    constructor(policy) {
-        this._localServiceName = process.env.BERLIOZ_CLUSTER + '-' + process.env.BERLIOZ_SERVICE;
+    constructor(berlioz, policy) {
+        this._berlioz = berlioz;
+        this._policy = policy;
+        this._localServiceName = ['service', process.env.BERLIOZ_CLUSTER, process.env.BERLIOZ_SECTOR, process.env.BERLIOZ_SERVICE].join('-');
 
         const ctxImpl = new CLSContext('zipkin');
 
-        this.logger = new HttpLogger({
+        this._zipLogger = new HttpLogger({
             endpoint: '',
             jsonEncoder: JSON_V2, // optional, defaults to JSON_V1
             httpInterval: 1000 // how often to sync spans. optional, defaults to 1000
         });
-        policy.monitor('zipkin-endpoint', [], value => {
-            this.logger.endpoint = value;
-        });
-        const recorder = new BatchRecorder({logger: this.logger});
+
+        const recorder = new BatchRecorder({logger: this._zipLogger});
         // const recorder = new ConsoleRecorder();
         this.tracer = new Tracer({
             ctxImpl,
             recorder,
             localServiceName: this._localServiceName
         });
+
+        this._monitorServiceId();
+    }
+
+    _monitorServiceId()
+    {
+        this._policy.monitor('zipkin-service-id', [], value => {
+            this._monitorServiceAddress(value)
+        });
+    }
+
+    _monitorServiceAddress(serviceId)
+    {
+        console.log('=============== ZIPKIN SERVICE ID: ' + serviceId);
+        this._berlioz._peerAccessor(serviceId, 'client').monitorFirst(peer => {
+            console.log('============= ZIKPIN PEER: ' + JSON.stringify(peer, null, 2));
+            this._zipLogger.endpoint = peer.protocol + '://' + peer.address + ':' + peer.port + '/api/v2/spans';
+            console.log('============= ZIKPIN URL: ' + this._zipLogger.endpoint);
+        })
     }
 
     addZipkinHeaders(request, traceId) {

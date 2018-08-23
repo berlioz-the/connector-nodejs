@@ -3,10 +3,10 @@ const Promise = require('the-promise');
 
 class Executor
 {
-    constructor(logger, registry, policy, zipkin, target, trackerMethod, trackerUrl, actionCb)
+    constructor(logger, peerAccessor, policy, zipkin, target, trackerMethod, trackerUrl, actionCb)
     {
         this._logger = logger;
-        this._registry = registry;
+        this._peerAccessor = peerAccessor;
         this._policy = policy;
         this._target = target;
         this._trackerMethod = trackerMethod;
@@ -18,13 +18,9 @@ class Executor
             this._zipkin = zipkin;
         }
 
-        if (target[0] == 'service') {
-            this._remoteServiceName = process.env.BERLIOZ_CLUSTER + '-' + target[1];
-        } else if (target[0] == 'cluster') {
-            this._remoteServiceName = target[1] + '-' + target[2];
-        } else {
-            this._remoteServiceName = process.env.BERLIOZ_CLUSTER + '-' + target.join('-');
-        }
+        this._remoteServiceName = _.head(this._target);
+        this._remoteServiceName = this._remoteServiceName.replace(/\//g, '');
+        this._remoteServiceName = this._remoteServiceName.replace(/:/g, '-');
 
         this._context = {
             canRetry: true,
@@ -115,8 +111,7 @@ class Executor
 
     _fetchPeer()
     {
-        var peers = this._registry.get(_.head(this._target), _.drop(this._target));
-        return _.randomElement(_.values(peers));
+        return this._peerAccessor.random();
     }
 
     _checkCompleted()
