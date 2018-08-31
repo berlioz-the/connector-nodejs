@@ -61,20 +61,22 @@ class PeerAccessor
 
     _selectFirstPeer(peers)
     {
-        var identity = _.head(_.keys(peers));
-        if (identity) {
-            return peers[identity];
+        if (_.isEmpty(peers)) {
+            return null;
         }
-        return null;
+        var identity = _.head(_.keys(peers));
+        return peers[identity];
     }
 
     _selectRandomPeer(peers)
     {
-        var identity = _.random(_.keys(peers));
-        if (identity) {
-            return peers[identity];
+        if (_.isEmpty(peers)) {
+            return null;
         }
-        return null;
+        var peerIdentities = _.keys(peers);
+        var index = _.random(0, peerIdentities.length - 1);
+        var identity = peerIdentities[index];
+        return peers[identity];
     }
 }
 
