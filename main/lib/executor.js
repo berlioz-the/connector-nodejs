@@ -3,12 +3,13 @@ const Promise = require('the-promise');
 
 class Executor
 {
-    constructor(logger, peerAccessor, policy, zipkin, target, trackerMethod, trackerUrl, actionCb)
+    constructor(logger, peerAccessor, policy, zipkin, target, selectRandom, trackerMethod, trackerUrl, actionCb)
     {
         this._logger = logger;
         this._peerAccessor = peerAccessor;
         this._policy = policy;
         this._target = target;
+        this._selectRandom = selectRandom;
         this._trackerMethod = trackerMethod;
         this._trackerUrl = trackerUrl;
         this._actionCb = actionCb;
@@ -111,7 +112,11 @@ class Executor
 
     _fetchPeer()
     {
-        return this._peerAccessor.random();
+        if (this._selectRandom) {
+            return this._peerAccessor.random();
+        } else {
+            return this._peerAccessor.first();
+        }
     }
 
     _checkCompleted()

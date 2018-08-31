@@ -22,7 +22,7 @@ class HttpPeerAccessor extends PeerAccessor
         var url = options.url;
         options.timeout = this._berlioz._policy.resolve('timeout', this._policyTarget);
 
-        return this.performExecutor(options.method || 'GET', url, cb,
+        return this.performExecutor(options.method || 'GET', url, true, cb,
             (peer, traceId) => {
 
                 options.url = peer.protocol + '://' + peer.address + ':' + peer.port;

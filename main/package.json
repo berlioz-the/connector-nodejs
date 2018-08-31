@@ -1,6 +1,6 @@
 {
   "name": "berlioz-connector",
-  "version": "1.0.79",
+  "version": "1.0.81",
   "description": "",
   "main": "index.js",
   "scripts": {

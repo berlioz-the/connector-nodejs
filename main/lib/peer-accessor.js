@@ -33,7 +33,7 @@ class PeerAccessor
 
     monitorFirst(cb)
     {
-        this._berlioz._monitorPeer(this._peerPath, this._berlioz._selectFirstPeer.bind(this._berlioz), cb);
+        this._berlioz._monitorPeer(this._peerPath, this._selectFirstPeer.bind(this), cb);
     }
 
     all()
@@ -43,20 +43,38 @@ class PeerAccessor
 
     first()
     {
-        return this._berlioz._getPeer(this._peerPath, this._berlioz._selectFirstPeer.bind(this._berlioz));
+        return this._berlioz._getPeer(this._peerPath, this._selectFirstPeer.bind(this));
     }
 
     random()
     {
-        return this._berlioz._getPeer(this._peerPath, this._berlioz._selectRandomPeer.bind(this._berlioz));
+        return this._berlioz._getPeer(this._peerPath, this._selectRandomPeer.bind(this));
     }
  
-    performExecutor(trackerMethod, trackerUrl, resultCb, actionCb)
+    performExecutor(trackerMethod, trackerUrl, selectRandom, resultCb, actionCb)
     {
         var executor = new Executor(this.logger, this, this._berlioz._policy, this._berlioz._zipkin,
-            this._peerPath,
+            this._peerPath, selectRandom,
             trackerMethod, trackerUrl, actionCb);
         return executor.perform(resultCb);
+    }
+
+    _selectFirstPeer(peers)
+    {
+        var identity = _.head(_.keys(peers));
+        if (identity) {
+            return peers[identity];
+        }
+        return null;
+    }
+
+    _selectRandomPeer(peers)
+    {
+        var identity = _.random(_.keys(peers));
+        if (identity) {
+            return peers[identity];
+        }
+        return null;
     }
 }
 

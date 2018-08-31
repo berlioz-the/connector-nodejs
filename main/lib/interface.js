@@ -214,24 +214,6 @@ class Interface {
         return selector(peers);
     }
 
-    _selectFirstPeer(peers)
-    {
-        var identity = _.head(_.keys(peers));
-        if (identity) {
-            return peers[identity];
-        }
-        return null;
-    }
-
-    _selectRandomPeer(peers)
-    {
-        var identity = _.head(_.keys(peers));
-        if (identity) {
-            return peers[identity];
-        }
-        return null;
-    }
-
 }
 
 module.exports = Interface;
