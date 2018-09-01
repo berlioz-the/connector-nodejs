@@ -53,8 +53,11 @@ class Zipkin {
     {
         console.log('=============== ZIPKIN SERVICE ID: ' + serviceId);
         this._berlioz._peerAccessor(serviceId, 'client').monitorFirst(peer => {
-            console.log('============= ZIKPIN PEER: ' + JSON.stringify(peer, null, 2));
-            this._zipLogger.endpoint = peer.protocol + '://' + peer.address + ':' + peer.port + '/api/v2/spans';
+            if (peer) {
+                this._zipLogger.endpoint = peer.protocol + '://' + peer.address + ':' + peer.port + '/api/v2/spans';
+            } else {
+                this._zipLogger.endpoint = null;
+            }
             console.log('============= ZIKPIN URL: ' + this._zipLogger.endpoint);
         })
     }

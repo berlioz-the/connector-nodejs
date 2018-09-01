@@ -15,7 +15,7 @@ class Executor
         this._actionCb = actionCb;
 
         if (this._resolvePolicy('enable-zipkin')) {
-            this._logger.info('Zipkin is enabled.');
+            this._logger.verbose('Zipkin is enabled.');
             this._zipkin = zipkin;
         }
 
