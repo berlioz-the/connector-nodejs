@@ -53,7 +53,7 @@ class NativeResource extends PeerAccessor
                     try {
                         this.logger.info('[NativeResource::client] Operation: %s', propKey)
 
-                        return this.performExecutor(propKey, '/', cb, false,
+                        return this.performExecutor(propKey, '/', false, cb, 
                             (peer) => {
                                 this.logger.info('[NativeResource::client] exec %s', propKey)
 
