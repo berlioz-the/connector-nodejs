@@ -14,7 +14,7 @@ process.env.BERLIOZ_SECTOR = 'main';
 process.env.BERLIOZ_SERVICE = 'test';
 process.env.BERLIOZ_AGENT_PATH = 'ws://' + INSTANCE_IP + ':' + PORT + '/' + TARGET_IP;
 
-const berlioz = require('../main');
+const berlioz = require('../');
 
 berlioz.service('app', 'client').monitorAll(peers => {
     console.log('************* MY SECTOR APP PEERS:');
