@@ -62,7 +62,7 @@ return Promise.timeout(1000)
         x = berlioz.database('contacts').random();
         console.log('------------------ DYANMO2 GET RANDOM: ' + JSON.stringify(x, null, 2));
 
-        
+        // return berlioz.cluster('another').endpoint('client').request({});
     })
     .then(() => berlioz.sector('main').database('contacts').client(AWS).scan({}))
     .then(result => {
