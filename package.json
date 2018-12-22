@@ -1,6 +1,6 @@
 {
   "name": "berlioz-connector",
-  "version": "1.0.100",
+  "version": "1.0.101",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -11,6 +11,7 @@
   "dependencies": {
     "@types/express": "^4.16.0",
     "@types/request": "^2.48.1",
+    "berlioz-identity-extractor": "^1.0.0",
     "body-parser": "^1.18.3",
     "json-pretty-html": "1.1.5",
     "node-rsa": "^1.0.0",
