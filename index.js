@@ -1,5 +1,8 @@
+var pjson = require('./package.json');
+console.log(`BerliozSDK v${pjson.version}`);
+
 if (!process.env.BERLIOZ_AGENT_PATH) {
-    throw new Error('Error: Environment variable BERLIOZ_AGENT_PATH not set');
+    throw new Error('BerliozSDKError: Environment variable BERLIOZ_AGENT_PATH not set');
 }
 
 var logger = require('the-logger').setup('bunyan', 'BerliozConnector', {
