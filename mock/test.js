@@ -7,12 +7,12 @@ if (!AWS) {
 // const INSTANCE_IP = 'ec2-52-202-201-228.compute-1.amazonaws.com';
 const INSTANCE_IP = 'localhost';
 const PORT = 55555;
-const TARGET_IP = '82d1c32d-19bd-4e8b-a53b-7529e386b7c3';
 
+process.env.TARGET_ID = '82d1c32d-19bd-4e8b-a53b-7529e386b7c3';
 process.env.BERLIOZ_CLUSTER = 'hello';
 process.env.BERLIOZ_SECTOR = 'main';
 process.env.BERLIOZ_SERVICE = 'test';
-process.env.BERLIOZ_AGENT_PATH = 'ws://' + INSTANCE_IP + ':' + PORT + '/' + TARGET_IP;
+process.env.BERLIOZ_AGENT_PATH = 'ws://' + INSTANCE_IP + ':' + PORT + '/${TARGET_ID}';
 
 const berlioz = require('../');
 

@@ -17,6 +17,6 @@ var registry = new Registry(logger.sublogger('BerliozRegistry'));
 var policy = new Policy(registry);
 var processor = new Processor(logger.sublogger('BerliozProcessor'), registry);
 var intf = new Interface(logger, registry, policy);
-var client = new Client(logger.sublogger('BerliozClient'), process.env.BERLIOZ_AGENT_PATH, processor);
+var client = new Client(logger.sublogger('BerliozClient'), intf.environment.BERLIOZ_AGENT_PATH, processor);
 
 module.exports = intf;

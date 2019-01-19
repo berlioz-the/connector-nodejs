@@ -1,6 +1,6 @@
 {
   "name": "berlioz-connector",
-  "version": "1.0.103",
+  "version": "1.0.104",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -11,15 +11,15 @@
   "dependencies": {
     "@types/express": "^4.16.0",
     "@types/request": "^2.48.1",
-    "berlioz-identity-extractor": "^1.0.0",
+    "berlioz-identity-extractor": "^1.0.1",
     "body-parser": "^1.18.3",
     "json-pretty-html": "1.1.5",
-    "node-rsa": "^1.0.0",
+    "node-rsa": "^1.0.2",
     "request": "^2.86.0",
     "request-promise": "^4.2.2",
     "serve-static": "^1.13.2",
     "the-lodash": "^1.0.13",
-    "the-logger": "^1.1.16",
+    "the-logger": "^1.1.20",
     "the-promise": "^1.1.4",
     "ws": "3.3.3",
     "zipkin": "^0.12.0",
