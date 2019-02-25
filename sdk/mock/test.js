@@ -15,6 +15,8 @@ process.env.BERLIOZ_SERVICE = 'test';
 process.env.BERLIOZ_AGENT_PATH = 'ws://' + INSTANCE_IP + ':' + PORT + '/${TARGET_ID}';
 
 const berlioz = require('../');
+berlioz.addon(require('../../aws'));
+berlioz.addon(require('../../gcp'));
 
 berlioz.service('app', 'client').monitorAll(peers => {
     console.log('************* MY SECTOR APP PEERS:');

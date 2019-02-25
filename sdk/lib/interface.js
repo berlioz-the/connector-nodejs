@@ -1,3 +1,5 @@
+const fs = require('fs');
+const Path = require('path');
 const _ = require('the-lodash');
 const Zipkin = require('./zipkin');
 const SecretClient = require('./secret-client')
@@ -16,29 +18,8 @@ class Interface {
         this._identity = identityExtractor.extract(this._environment);
         this._zipkin = new Zipkin(this, policy);
 
-        this._nativeClientFetcher = {
-            dynamodb: (peer, AWS) => {
-                return new AWS.DynamoDB.DocumentClient(peer.config);
-            },
-            kinesis: (peer, AWS) => {
-                return new AWS.Kinesis(peer.config);
-            },
-            "rsa-secret": (peer, AWS) => {
-                return new AWS.SSM(peer.config);
-            }
-        }
-
-        this._nativeClientParamsSetter = {
-            dynamodb: (peer) => { return (params) => {
-                params.TableName = peer.name;
-            }; },
-            kinesis: (peer) => { return (params) => {
-                params.StreamName = peer.name;
-            }; },
-            "rsa-secret": (peer) => { return (params) => {
-                params.Name = peer.name;
-            }; }
-        }
+        this._nativeClientFetcher = {};
+        this._nativeClientParamsSetter = {};
     }
 
     get logger() {
@@ -59,6 +40,41 @@ class Interface {
 
     extractRoot() {
         return this._registry.extractRoot();
+    }
+
+    /* ADDON MANAGEMENT */
+    addon(addon)
+    {
+        this._acceptAddonNative(addon.nativeHandlerDir);
+    }
+
+    _acceptAddonNative(dir)
+    {
+        if (!dir) {
+            return;
+        }
+
+        this.logger.info("Loading addon from %s...", dir)
+        fs.readdirSync(dir).forEach((file) => {
+            var includePath = Path.join(dir, file);
+            this.logger.info("Including from %s...", includePath)
+
+            var addonModule = require(includePath);
+            // this.logger.info("Addon: ", _.keys(addonModule))
+
+            if (!addonModule.subClass) {
+                return;
+            }
+            if (addonModule.clientFetcher) {
+                this._nativeClientFetcher[addonModule.subClass] = addonModule.clientFetcher;
+            }
+            if (addonModule.paramsSetter) {
+                this._nativeClientParamsSetter[addonModule.subClass] = addonModule.paramsSetter;
+            }
+        });
+
+        // this.logger.info("this._nativeClientFetcher: ", _.keys(this._nativeClientFetcher))
+        // this.logger.info("this._nativeClientParamsSetter: ", _.keys(this._nativeClientParamsSetter))
     }
 
     /* PEERS */

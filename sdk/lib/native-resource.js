@@ -10,42 +10,18 @@ class NativeResource extends PeerAccessor
     constructor(berlioz, id)
     {
         super(berlioz, [id]);
-
-        this._nativeClientFetcher = {
-            dynamodb: (peer, AWS) => {
-                return new AWS.DynamoDB.DocumentClient(peer.config);
-            },
-            kinesis: (peer, AWS) => {
-                return new AWS.Kinesis(peer.config);
-            },
-            "rsa-secret": (peer, AWS) => {
-                return new AWS.SSM(peer.config);
-            }
-        }
-
-        this._nativeClientParamsSetter = {
-            dynamodb: (peer) => { return (params) => {
-                params.TableName = peer.name;
-            }; },
-            kinesis: (peer) => { return (params) => {
-                params.StreamName = peer.name;
-            }; },
-            "rsa-secret": (peer) => { return (params) => {
-                params.Name = peer.name;
-            }; }
-        }
     }
 
-    _fetchNativeClient(peer, AWS)
+    _fetchNativeClient(peer, ClientModule)
     {
-        if (!(peer.subClass in this._nativeClientFetcher)) {
+        if (!(peer.subClass in this._berlioz._nativeClientFetcher)) {
             throw new Error(this.peerId + ' ' + peer.subClass + ' not supported');
         }
-        var client = this._nativeClientFetcher[peer.subClass](peer, AWS);
+        var client = this._berlioz._nativeClientFetcher[peer.subClass](peer, ClientModule);
         return client;
     }
 
-    client(AWS) {
+    client(ClientModule) {
         this.logger.info('[NativeResource::client] peerPath: %s', this.peerPath)
         var handler = {
             get: (target, propKey) => {
@@ -61,18 +37,18 @@ class NativeResource extends PeerAccessor
                             (peer) => {
                                 this.logger.info('[NativeResource::client] exec %s', propKey)
 
-                                var client = this._fetchNativeClient(peer, AWS);
+                                var client = this._fetchNativeClient(peer, ClientModule);
 
                                 const origMethod = client[propKey];
                                 if (!origMethod) {
                                     throw new Error('Method ' + propKey + ' not found.');
                                 }
 
-                                if (!(peer.subClass in this._nativeClientParamsSetter)) {
+                                if (!(peer.subClass in this._berlioz._nativeClientParamsSetter)) {
                                     throw new Error(this.peerId + ' ' + peer.subClass + ' not supported');
                                 }
-                                var paramsSetter = this._nativeClientParamsSetter[peer.subClass](peer);
-                                paramsSetter(params);
+                                var paramsSetter = this._berlioz._nativeClientParamsSetter[peer.subClass];
+                                paramsSetter(peer, params);
 
                                 this.logger.info('[NativeResource::client] params ', params)
 
