@@ -5,7 +5,7 @@ if (!process.env.BERLIOZ_AGENT_PATH) {
     throw new Error('BerliozSDKError: Environment variable BERLIOZ_AGENT_PATH not set');
 }
 
-var logger = require('the-logger').setup('bunyan', 'BerliozConnector', {
+var logger = require('the-logger').setup('bunyan', 'BerliozSDK', {
     enableFile: false
 });
 // logger.level = 'error';
@@ -17,7 +17,7 @@ const Interface = require('./lib/interface');
 const Client = require('./lib/client');
 
 var registry = new Registry(logger.sublogger('BerliozRegistry'));
-var policy = new Policy(registry);
+var policy = new Policy(logger.sublogger('BerliozPolicy'), registry);
 var processor = new Processor(logger.sublogger('BerliozProcessor'), registry);
 var intf = new Interface(logger, registry, policy);
 var client = new Client(logger.sublogger('BerliozClient'), intf.environment.BERLIOZ_AGENT_PATH, processor);

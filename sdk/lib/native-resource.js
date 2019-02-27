@@ -12,16 +12,16 @@ class NativeResource extends PeerAccessor
         super(berlioz, [id]);
     }
 
-    _fetchNativeClient(peer, ClientModule)
+    _fetchNativeClient(peer, ClientModule, clientKind)
     {
         if (!(peer.subClass in this._berlioz._nativeClientFetcher)) {
             throw new Error(this.peerId + ' ' + peer.subClass + ' not supported');
         }
-        var client = this._berlioz._nativeClientFetcher[peer.subClass](peer, ClientModule);
+        var client = this._berlioz._nativeClientFetcher[peer.subClass](peer, ClientModule, clientKind);
         return client;
     }
 
-    client(ClientModule) {
+    client(ClientModule, clientKind) {
         this.logger.info('[NativeResource::client] peerPath: %s', this.peerPath)
         var handler = {
             get: (target, propKey) => {
@@ -37,7 +37,7 @@ class NativeResource extends PeerAccessor
                             (peer) => {
                                 this.logger.info('[NativeResource::client] exec %s', propKey)
 
-                                var client = this._fetchNativeClient(peer, ClientModule);
+                                var client = this._fetchNativeClient(peer, ClientModule, clientKind);
 
                                 const origMethod = client[propKey];
                                 if (!origMethod) {

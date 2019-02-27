@@ -15,11 +15,10 @@ const {
 } = require('zipkin-transport-http');
 const CLSContext = require('zipkin-context-cls');
 
-const Promise = require('the-promise');
-
 class Zipkin {
     constructor(berlioz, policy) {
         this._berlioz = berlioz;
+        this._logger = this._berlioz.logger.sublogger("BerliozZipkin");
         this._policy = policy;
         this._localServiceName = ['service', process.env.BERLIOZ_CLUSTER, process.env.BERLIOZ_SECTOR, process.env.BERLIOZ_SERVICE].join('-');
 
@@ -42,6 +41,10 @@ class Zipkin {
         this._monitorServiceId();
     }
 
+    get logger() {
+        return this._logger;
+    }
+
     _monitorServiceId()
     {
         this._policy.monitor('zipkin-service-id', [], value => {
@@ -51,7 +54,7 @@ class Zipkin {
 
     _monitorServiceAddress(serviceId)
     {
-        console.log('=============== ZIPKIN SERVICE ID: ' + serviceId);
+        this.logger.info('ZIPKIN SERVICE ID: %s', serviceId);
         this._zipLogger.endpoint = null;
         this._berlioz._peerAccessor(serviceId).monitorFirst(peer => {
             if (peer) {
@@ -59,7 +62,7 @@ class Zipkin {
             } else {
                 this._zipLogger.endpoint = null;
             }
-            console.log('============= ZIKPIN URL: ' + this._zipLogger.endpoint);
+            this.logger.info('ZIPKIN URL: %s', this._zipLogger.endpoint);
         })
     }
 
@@ -69,6 +72,7 @@ class Zipkin {
 
     instrument(remoteServiceName, method, url)
     {
+        this.logger.verbose('[instrument] %s...', remoteServiceName);
         return this.tracer.scoped(() => {
             this.tracer.setId(this.tracer.createChildId());
             this.tracer.recordServiceName(this.tracer.localEndpoint.serviceName);

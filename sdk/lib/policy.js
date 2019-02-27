@@ -2,8 +2,9 @@ const _ = require('the-lodash');
 
 class Policy
 {
-    constructor(registry)
+    constructor(logger, registry)
     {
+        this._logger = logger;
         this._registry = registry;
         this._defaults = {
             'enable-zipkin': false,
@@ -17,12 +18,19 @@ class Policy
         }
     }
 
+    get logger() {
+        return this._logger;
+    }
+
     monitor(name, target, cb)
     {
+        this.logger.verbose('[monitor] %s::%s ...', name, target);
         var currValue = this.resolve(name, target);
         cb(currValue);
         this._registry.subscribe('policies', [], () => {
+            this.logger.verbose('[monitor] changed %s::%s ...', name, target);
             var newValue = this.resolve(name, target);
+            this.logger.verbose('[monitor] changed %s::%s, new value: %s', name, target, newValue);
             if (currValue != newValue) {
                 currValue = newValue;
                 cb(currValue);

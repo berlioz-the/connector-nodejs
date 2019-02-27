@@ -120,8 +120,6 @@ class Interface {
         this._registry.subscribe('endpoints', path, cb);
     }
 
-    
-   
     /* SECRET PUBLIC KEY */
     // monitorSecretPublicKey(name, cb) {
     //     this._logger.info('monitorSecretPublicKey:: ' + JSON.stringify([name]));
