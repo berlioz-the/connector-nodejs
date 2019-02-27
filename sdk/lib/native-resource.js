@@ -44,12 +44,12 @@ class NativeResource extends PeerAccessor
                                     throw new Error('Method ' + propKey + ' not found.');
                                 }
 
-                                if (!(peer.subClass in this._berlioz._nativeClientParamsSetter)) {
-                                    throw new Error(this.peerId + ' ' + peer.subClass + ' not supported');
+                                if (peer.subClass in this._berlioz._nativeClientParamsSetter)
+                                {
+                                    var paramsSetter = this._berlioz._nativeClientParamsSetter[peer.subClass];
+                                    paramsSetter(peer, params);
                                 }
-                                var paramsSetter = this._berlioz._nativeClientParamsSetter[peer.subClass];
-                                paramsSetter(peer, params);
-
+                                
                                 this.logger.info('[NativeResource::client] params ', params)
 
                                 return new Promise((resolve, reject) => {
