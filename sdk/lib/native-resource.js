@@ -47,7 +47,7 @@ class NativeResource extends PeerAccessor
                                 if (peer.subClass in this._berlioz._nativeClientParamsSetter)
                                 {
                                     var paramsSetter = this._berlioz._nativeClientParamsSetter[peer.subClass];
-                                    paramsSetter(peer, params);
+                                    paramsSetter(peer, params, propKey, clientKind);
                                 }
                                 
                                 this.logger.info('[NativeResource::client] params ', params)

@@ -16,3 +16,12 @@ module.exports.clientFetcher = function(peer, GcpPubSub, clientKind)
 
     return client;
 }
+
+module.exports.paramsSetter = function(peer, params, action, clientKind) 
+{
+    if (action == 'publish') {
+        params.topic = peer.name
+    }
+    // params.TableName = peer.name;
+}
+
