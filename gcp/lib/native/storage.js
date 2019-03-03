@@ -8,3 +8,15 @@ module.exports.clientFetcher = function(peer, GcpStorage)
     var bucket = storage.bucket(peer.name);
     return bucket;
 }
+
+module.exports.actionMetadata = {
+    'file': {
+        passthrough: true
+    },
+    'createReadStream': {
+        passthrough: true
+    },
+    'createWriteStream': {
+        passthrough: true
+    }
+}

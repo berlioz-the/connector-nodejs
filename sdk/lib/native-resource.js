@@ -49,21 +49,38 @@ class NativeResource extends PeerAccessor
                                     var paramsSetter = this._berlioz._nativeClientParamsSetter[peer.subClass];
                                     paramsSetter(peer, params, propKey, clientKind);
                                 }
-                                
+
+                                var passthrough = false;
+                                if (peer.subClass in this._berlioz._nativeClientActionMetadata)
+                                {
+                                    var actionsMetadata = this._berlioz._nativeClientActionMetadata[peer.subClass];
+                                    if (propKey in actionsMetadata) {
+                                        var methodMetadata = actionsMetadata[propKey];
+                                        if (methodMetadata.passthrough) {
+                                            passthrough = methodMetadata.passthrough;
+                                        }
+                                    }
+                                }
                                 this.logger.info('[NativeResource::client] params ', params)
 
                                 return new Promise((resolve, reject) => {
                                     this.logger.info('[NativeResource::client] calling ');
-
-                                    origMethod.call(client, params, (err, data) => {
-                                        if (err) {
-                                            this.logger.info('[NativeResource::client] err ');
-                                            reject(err);
-                                        } else {
-                                            this.logger.info('[NativeResource::client] done ');
-                                            resolve(data);
-                                        }
-                                    });
+                                    var origParams = [params];
+                                    if (!passthrough) {
+                                        origParams.push((err, data) => {
+                                            if (err) {
+                                                this.logger.info('[NativeResource::client] err ');
+                                                reject(err);
+                                            } else {
+                                                this.logger.info('[NativeResource::client] done ');
+                                                resolve(data);
+                                            }
+                                        })
+                                    }
+                                    var res = origMethod.apply(client, origParams);
+                                    if (passthrough) {
+                                        resolve(res);
+                                    }
                                 });
 
                             });

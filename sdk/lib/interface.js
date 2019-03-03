@@ -20,6 +20,7 @@ class Interface {
 
         this._nativeClientFetcher = {};
         this._nativeClientParamsSetter = {};
+        this._nativeClientActionMetadata = {};
     }
 
     get logger() {
@@ -70,6 +71,9 @@ class Interface {
             }
             if (addonModule.paramsSetter) {
                 this._nativeClientParamsSetter[addonModule.subClass] = addonModule.paramsSetter;
+            }
+            if (addonModule.actionMetadata) {
+                this._nativeClientActionMetadata[addonModule.subClass] = addonModule.actionMetadata;
             }
         });
 
