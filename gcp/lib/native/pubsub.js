@@ -25,3 +25,10 @@ module.exports.paramsSetter = function(peer, params, action, clientKind)
     // params.TableName = peer.name;
 }
 
+module.exports.actionMetadata = {
+    'subscriptionPath': {
+        passthrough: true
+    }
+}
+
+
