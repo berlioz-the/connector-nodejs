@@ -14,7 +14,11 @@ const logger = berlioz.logger.sublogger("Sample");
 
 function processQueue()
 {
+    berlioz.zipkin._zipLogger.endpoint = 'http://localhost:' + '40004' + '/api/v2/spans';
+    logger.info('NEW ZIPKIN URL: %s', berlioz.zipkin._zipLogger.endpoint);
+
     logger.info("[ProcessQueue]...");
+    berlioz.zipkin.instrument('my-internal', 'processQueue', 'http://zzz');
     return Promise.timeout(1000)
         .then(() => processQueue());
 }

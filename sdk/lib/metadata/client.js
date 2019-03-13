@@ -4,10 +4,13 @@ const _ = require('the-lodash');
 
 class Client
 {
-    constructor(logger, baseAddress, processor)
+    constructor(logger, environment, processor)
     {
         this._logger = logger;
-        this._baseAddress = baseAddress;
+        this._baseAddress = environment.BERLIOZ_AGENT_PATH;
+        if (!this._baseAddress) {
+            throw new Error('BerliozSDKError: Environment variable BERLIOZ_AGENT_PATH not set');
+        }
         this._processor = processor;
 
         this._wsInfo = {

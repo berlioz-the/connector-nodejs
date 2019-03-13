@@ -75,7 +75,7 @@ class Zipkin {
         this.logger.verbose('[instrument] %s...', remoteServiceName);
         return this.tracer.scoped(() => {
             this.tracer.setId(this.tracer.createChildId());
-            this.tracer.recordServiceName(this.tracer.localEndpoint.serviceName);
+            // this.tracer.recordServiceName(this._localServiceName);
             this.tracer.recordRpc(method.toUpperCase());
             this.tracer.recordBinary('http.url', url);
             this.tracer.recordAnnotation(new Annotation.ClientSend());
@@ -91,7 +91,7 @@ class Zipkin {
                 this.tracer.recordAnnotation(new Annotation.ClientRecv());
             };
 
-            const recordError  = (error) => {
+            const recordError = (error) => {
                 this.tracer.setId(traceId);
                 this.tracer.recordBinary('error', error.toString());
                 this.tracer.recordAnnotation(new Annotation.ClientRecv());
