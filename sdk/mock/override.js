@@ -11,7 +11,8 @@ process.env.BERLIOZ_METADATA_OVERRIDE = JSON.stringify({
                 "class": "storage",
                 "id": "database://func-main-images",
                 "kind": "database",
-                "subClass": "storage"
+                "subClass": "storage",
+                "name": "sample-proj-2-230121_gprod_func_us-central1_main_images"
             }
         }
     },
