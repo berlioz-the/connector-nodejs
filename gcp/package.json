@@ -1,6 +1,6 @@
 {
   "name": "berlioz-gcp",
-  "version": "1.0.7",
+  "version": "1.0.14",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -15,5 +15,12 @@
   "bugs": {
     "url": "https://github.com/berlioz-the/connector-nodejs/issues"
   },
-  "homepage": "https://github.com/berlioz-the/connector-nodejs#readme"
+  "homepage": "https://github.com/berlioz-the/connector-nodejs#readme",
+  "dependencies": {
+    "@google-cloud/firestore": "^1.2.0",
+    "@google-cloud/pubsub": "^0.28.1",
+    "@google-cloud/storage": "^2.4.3",
+    "promise-mysql": "^3.3.1",
+    "the-lodash": "^1.0.14"
+  }
 }

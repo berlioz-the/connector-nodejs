@@ -18,9 +18,7 @@ class Interface {
         this._identity = identityExtractor.extract(this._environment);
         this._zipkin = new Zipkin(this, policy);
 
-        this._nativeClientFetcher = {};
-        this._nativeClientParamsSetter = {};
-        this._nativeClientActionMetadata = {};
+        this._peerClients = {};
     }
 
     get logger() {
@@ -46,39 +44,29 @@ class Interface {
     /* ADDON MANAGEMENT */
     addon(addon)
     {
-        this._acceptAddonNative(addon.nativeHandlerDir);
+        this._acceptPeerClientFromDir(addon.peerClientDir);
     }
 
-    _acceptAddonNative(dir)
+    _acceptPeerClientFromDir(dir)
     {
         if (!dir) {
             return;
         }
 
-        this.logger.info("Loading addon from %s...", dir)
+        this.logger.info("Loading peer client addon from %s...", dir)
         fs.readdirSync(dir).forEach((file) => {
+            file = _.replaceAll(file, '.js', '');
             var includePath = Path.join(dir, file);
+            this.logger.info("Including %s...", file)
             this.logger.info("Including from %s...", includePath)
 
             var addonModule = require(includePath);
             // this.logger.info("Addon: ", _.keys(addonModule))
 
-            if (!addonModule.subClass) {
-                return;
-            }
-            if (addonModule.clientFetcher) {
-                this._nativeClientFetcher[addonModule.subClass] = addonModule.clientFetcher;
-            }
-            if (addonModule.paramsSetter) {
-                this._nativeClientParamsSetter[addonModule.subClass] = addonModule.paramsSetter;
-            }
-            if (addonModule.actionMetadata) {
-                this._nativeClientActionMetadata[addonModule.subClass] = addonModule.actionMetadata;
-            }
+            this._peerClients[file] = addonModule;
         });
 
-        // this.logger.info("this._nativeClientFetcher: ", _.keys(this._nativeClientFetcher))
-        // this.logger.info("this._nativeClientParamsSetter: ", _.keys(this._nativeClientParamsSetter))
+        // this.logger.info("this._peerClients: ", _.keys(this._peerClients))
     }
 
     /* PEERS */

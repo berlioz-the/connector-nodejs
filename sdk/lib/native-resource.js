@@ -4,6 +4,7 @@ const request = require('request-promise');
 
 const PeerAccessor = require('./peer-accessor');
 const Executor = require('./executor');
+const NativeProxy = require('./native-proxy');
 
 class NativeResource extends PeerAccessor
 {
@@ -11,92 +12,28 @@ class NativeResource extends PeerAccessor
     {
         super(berlioz, [id]);
     }
-
-    _fetchNativeClient(peer, ClientModule, clientKind)
+    
+    client(...args)
     {
-        if (!(peer.subClass in this._berlioz._nativeClientFetcher)) {
-            throw new Error(this.peerId + ' ' + peer.subClass + ' not supported');
+        if (args.length == 0) {
+            throw new Error("SDK name not provided.");
         }
-        var client = this._berlioz._nativeClientFetcher[peer.subClass](peer, ClientModule, clientKind);
-        return client;
+        var sdkName = args[0]
+        if (_.isNullOrUndefined(sdkName)) {
+            throw new Error("SDK name not set.");
+        }
+
+        var peerSdkModule = this._berlioz._peerClients[sdkName];
+        if (_.isNullOrUndefined(sdkName)) {
+            throw new Error(`Unknown SDK ${sdkName}`);
+        }
+
+        var proxy = new NativeProxy(this, peerSdkModule, [{
+            args: args
+        }]);
+        return proxy.handle();
     }
 
-    client(ClientModule, clientKind) {
-        this.logger.info('[NativeResource::client] peerPath: %s', this.peerPath)
-        var handler = {
-            get: (target, propKey) => {
-                return (params, cb) => {
-                    try {
-                        this.logger.info('[NativeResource::client] Operation: %s', propKey)
-
-                        return this.performExecutor(
-                            propKey, 
-                            '/', 
-                            this.first.bind(this),
-                            cb, 
-                            (peer) => {
-                                this.logger.info('[NativeResource::client] exec %s', propKey)
-
-                                var client = this._fetchNativeClient(peer, ClientModule, clientKind);
-
-                                const origMethod = client[propKey];
-                                if (!origMethod) {
-                                    throw new Error('Method ' + propKey + ' not found.');
-                                }
-
-                                if (peer.subClass in this._berlioz._nativeClientParamsSetter)
-                                {
-                                    var paramsSetter = this._berlioz._nativeClientParamsSetter[peer.subClass];
-                                    paramsSetter(peer, params, propKey, clientKind);
-                                }
-
-                                var passthrough = false;
-                                if (peer.subClass in this._berlioz._nativeClientActionMetadata)
-                                {
-                                    var actionsMetadata = this._berlioz._nativeClientActionMetadata[peer.subClass];
-                                    if (propKey in actionsMetadata) {
-                                        var methodMetadata = actionsMetadata[propKey];
-                                        if (methodMetadata.passthrough) {
-                                            passthrough = methodMetadata.passthrough;
-                                        }
-                                    }
-                                }
-                                this.logger.info('[NativeResource::client] params ', params)
-
-                                return new Promise((resolve, reject) => {
-                                    this.logger.info('[NativeResource::client] calling ');
-                                    var origParams = [params];
-                                    if (!passthrough) {
-                                        origParams.push((err, data) => {
-                                            if (err) {
-                                                this.logger.info('[NativeResource::client] err ');
-                                                reject(err);
-                                            } else {
-                                                this.logger.info('[NativeResource::client] done ');
-                                                resolve(data);
-                                            }
-                                        })
-                                    }
-                                    var res = origMethod.apply(client, origParams);
-                                    if (passthrough) {
-                                        resolve(res);
-                                    }
-                                });
-
-                            });
-                    } catch (e) {
-                        this.logger.exception(e);
-                        if (cb) {
-                            cb(e, null);
-                        } else {
-                            return Promise.reject(e);
-                        }
-                    }
-                };
-            }
-        };
-        return new Proxy({}, handler);
-    }
 }
 
 module.exports = NativeResource;
