@@ -1,4 +1,5 @@
 const _ = require('the-lodash');
+const uuid = require('uuid/v4');
 
 class Registry
 {
@@ -17,11 +18,21 @@ class Registry
     {
         var subscriberId = this._getSubscriberId(sectionName, path);
         if (!(subscriberId in this._subscribers)) {
-            this._subscribers[subscriberId] = [];
+            this._subscribers[subscriberId] = {};
         }
-        this._subscribers[subscriberId].push(cb);
+        var id = uuid();
+        this._subscribers[subscriberId][id] = cb;
 
         this._notifyToSubscriber(sectionName, path, cb);
+
+        return {
+            stop: () => {
+                delete this._subscribers[subscriberId][id];
+                if (_.keys(this._subscribers[subscriberId]).length == 0) {
+                    delete this._subscribers[subscriberId];
+                }
+            }
+        }
     }
 
     _getSubscriberId(sectionName, path)
@@ -44,7 +55,7 @@ class Registry
         if (!value) {
             return;
         }
-        for(var cb of this._subscribers[subscriberId])
+        for(var cb of _.values(this._subscribers[subscriberId]))
         {
             this._triggerToSubscriber(value, cb);
         }

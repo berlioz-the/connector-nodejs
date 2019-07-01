@@ -1,6 +1,6 @@
 {
   "name": "berlioz-sdk",
-  "version": "1.0.118",
+  "version": "1.0.120",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -21,6 +21,7 @@
     "the-lodash": "^1.0.14",
     "the-logger": "^1.1.20",
     "the-promise": "^1.1.4",
+    "uuid": "^3.3.2",
     "ws": "3.3.3",
     "zipkin": "^0.12.0",
     "zipkin-context-cls": "^0.11.0",

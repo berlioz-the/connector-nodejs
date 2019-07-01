@@ -6,7 +6,7 @@ const Executor = require('./executor');
 
 class NativeProxy
 {
-    constructor(resource, peerSdkModule, operations)
+    constructor(resource, peerSdkModule, operations, session)
     {
         this._resource = resource;
         this._peerSdkModule = peerSdkModule;
@@ -14,6 +14,7 @@ class NativeProxy
         if (!this._operations) {
             this._operations = [];
         }
+        this._session = session;
 
         this.logger.info('[NativeProxy] constructor, operations: ', this._operations)
 
@@ -31,7 +32,6 @@ class NativeProxy
 
         this._massagedOperations = this._buildConfigs();
         this.logger.info('[NativeProxy] constructor, config: ', this._operationConfigs)
-
     }
 
     get logger() {
@@ -102,8 +102,8 @@ class NativeProxy
     _proxyHandler(action, args)
     {
         try {
-            this.logger.info('[NativeProxy::_proxyHandler] Operation: %s', action)
-            this.logger.info('[NativeProxy::_proxyHandler] Arguments: ', args)
+            this.logger.verbose('[NativeProxy::_proxyHandler] Operation: %s', action)
+            this.logger.verbose('[NativeProxy::_proxyHandler] Arguments: ', args)
 
             if (action == 'then' || action == 'catch') {
                 return Promise.resolve("NotPromisable.");
@@ -131,7 +131,7 @@ class NativeProxy
     {
         var operations = _.clone(this._operations);
         operations.push(operation);
-        var childProxy = new NativeProxy(this._resource, this._peerSdkModule, operations);
+        var childProxy = new NativeProxy(this._resource, this._peerSdkModule, operations, this._session);
         return childProxy.handle();
     }
 
@@ -155,7 +155,7 @@ class NativeProxy
 
     _executeForPeer(peer)
     {
-        this.logger.info('[NativeProxy::_executeForPeer] %s, peer: ', this._resource.peerPath, peer);
+        this.logger.silly('[NativeProxy::_executeForPeer] %s, peer: ', this._resource.peerPath, peer);
 
         var result = null;
         var operationNames = []
@@ -167,7 +167,7 @@ class NativeProxy
             return Promise.resolve(this._runOperation(peer, x, result, operationNames))
                 .then(newResult => {
                     result = newResult;
-                    this.logger.info('[NativeResource::_executeForPeer] %s, result:', this._resource.peerPath, result);
+                    this.logger.silly('[NativeResource::_executeForPeer] %s, result:', this._resource.peerPath, result);
                 })
         })
         .then(() => result);
@@ -175,15 +175,40 @@ class NativeProxy
 
     _runOperation(peer, massagedOperation, root, operationNames)
     {
+        var name = operationNames.join("-")
+
         if (!massagedOperation.operation.action) {
             if (!this._peerSdkModule.clientFetcher) {
                 throw new Error(`Peer ${peer.subClass} not supported`);
             }
             return Promise.resolve()
                 .then(() => {
-                    var client = this._peerSdkModule.clientFetcher(peer, massagedOperation.operation.args);
-                    return client;
+                    if (this._session.client) {
+                        if (!_.fastDeepEqual(this._session.peer, peer)) {
+                            var client = this._session.client;
+                            this._session.client = null;
+                            this._session.peer = null;
+                            if (this._peerSdkModule.clientTerminator) {
+                                this.logger.info('[_runOperation] running clientTerminator for %s...', name);
+                                return this._peerSdkModule.clientTerminator(client);
+                            }
+                        }
+                        return this._session.client;
+                    }
                 })
+                .then(() => {
+                    if (!this._session.client) {
+                        this.logger.info('[_runOperation] running clientFetcher for %s...', name);
+                        return Promise.resolve(this._peerSdkModule.clientFetcher(peer, massagedOperation.operation.args))
+                            .then(client => {
+                                this._session.client = client;
+                                this._session.peer = peer;
+                                return this._session.client;
+                            })
+                    } else {
+                        return this._session.client;
+                    }
+                });
         }
 
         const origMethod = root[massagedOperation.operation.action];
@@ -197,13 +222,12 @@ class NativeProxy
             args = processArgs(peer, args, operationNames);
         }
 
-        var name = operationNames.join("-")
-        this.logger.info("[_runOperation] %s, args: ", name, args);
+        this.logger.verbose("[_runOperation] %s, args: ", name, args);
         var result = origMethod.apply(root, args);
 
         return Promise.resolve(result)
             .then(finalResult => {
-                this.logger.info('[NativeResource::_runOperation] %s, result:', name, finalResult);
+                this.logger.verbose('[_runOperation] %s, result:', name, finalResult);
                 return finalResult;
             })
     }

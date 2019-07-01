@@ -189,14 +189,14 @@ class Interface {
     _monitorPeers(peerPath, cb)
     {
         this._logger.info('Service::MonitorPeers: ', peerPath);
-        this._registry.subscribe('peers', peerPath, cb);
+        return this._registry.subscribe('peers', peerPath, cb);
     }
 
     _monitorPeer(peerPath, selector, cb)
     {
         var oldValue = null;
         this._logger.info('Service::MonitorFirstPeer: ', peerPath);
-        this._registry.subscribe('peers', peerPath, peers => {
+        return this._registry.subscribe('peers', peerPath, peers => {
             var value = selector(peers);
             var isChanged = false;
             if (value) {

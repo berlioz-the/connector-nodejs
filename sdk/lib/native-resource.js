@@ -30,7 +30,7 @@ class NativeResource extends PeerAccessor
 
         var proxy = new NativeProxy(this, peerSdkModule, [{
             args: args
-        }]);
+        }], {});
         return proxy.handle();
     }
 

@@ -25,3 +25,8 @@ module.exports.clientFetcher = function(peer, args)
     var config = _.defaults(customConfig, peerConfig);
     return MySql.createConnection(config);
 }
+
+module.exports.clientTerminator = function(client)
+{
+    return client.end();
+}

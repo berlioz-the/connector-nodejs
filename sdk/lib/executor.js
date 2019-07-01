@@ -87,16 +87,18 @@ class Executor
 
     _perform()
     {
-        var peer = this._fetchPeer();
-        if (!peer) {
-            if (!this._resolvePolicy('no-peer-retry')) {
-                this._context.canRetry = false;
-            }
-            return Promise.reject(new Error('No peer found.'));
-        }
-
         var tracer = this._instrument(this._remoteServiceName, this._trackerMethod, this._trackerUrl);
-        return Promise.resolve(this._actionCb(peer, tracer.traceId))
+        return Promise.resolve()
+            .then(() => {
+                var peer = this._fetchPeer();
+                if (!peer) {
+                    if (!this._resolvePolicy('no-peer-retry')) {
+                        this._context.canRetry = false;
+                    }
+                    return Promise.reject(new Error('No peer found.'));
+                }
+                return this._actionCb(peer, tracer.traceId);
+            })
             .then(result => {
                 tracer.finish(200);
                 this._context.result = result;
